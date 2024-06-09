@@ -15,6 +15,39 @@ permissions:
   contents: read
 
 jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    env:
+      otp: 26.2
+      elixir: 1.16.2
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: ${{ env.elixir }}
+        otp-version: ${{ env.otp }}
+
+    - name: Restore dependencies cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ runner.os }}-elixir-${{ env.elixir }}-otp-${{ env.otp }}-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+
+    - name: Install dependencies
+      run: mix do deps.get, deps.compile
+
+    - name: Check compilation warnings
+      run: mix compile --warnings-as-errors
+
+    - name: Check formatting
+      run: mix compile --check-formatted
+
   build:
     name: Build and test
     runs-on: ubuntu-latest
