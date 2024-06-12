@@ -15,8 +15,8 @@ defmodule Lanx.MixProject do
       homepage_url: "https://benjamin-philip.github.io/lanx/",
       docs: [
         # The main page in the docs
-        main: "MyApp",
-        extras: ["README.md"]
+        main: "Lanx",
+        extras: ["README.md", "LICENSE"]
       ]
     ]
   end
