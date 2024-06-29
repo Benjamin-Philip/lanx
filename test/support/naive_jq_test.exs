@@ -24,7 +24,7 @@ defmodule NaiveJQTest do
   end
 
   test "runs job on item", config do
-    queued_hash = NaiveJQ.await(config.naive_jq, config.test)
+    queued_hash = NaiveJQ.run(config.naive_jq, config.test)
     eager_hash = config.params[:job].(config.test)
     assert queued_hash == eager_hash
   end

@@ -17,8 +17,8 @@ defmodule NaiveJQ do
     GenServer.start_link(__MODULE__, job, Keyword.delete(opts, :job))
   end
 
-  def await(server, item) do
-    GenServer.call(server, {:await, item})
+  def run(server, item) do
+    GenServer.call(server, {:run, item})
   end
 
   @impl true
@@ -27,15 +27,15 @@ defmodule NaiveJQ do
   end
 
   @impl true
-  def handle_call({:await, item}, from, state) do
+  def handle_call({:run, item}, from, state) do
     appended = :queue.in({item, from}, state.queue)
-    send(self(), :run)
+    send(self(), :execute)
 
     {:noreply, %{state | queue: appended}}
   end
 
   @impl true
-  def handle_info(:run, state) do
+  def handle_info(:execute, state) do
     case :queue.out(state.queue) do
       {{:value, {item, from}}, popped} ->
         GenServer.reply(from, state.job.(item))
