@@ -14,7 +14,7 @@ defmodule LanxTest do
     Map.merge(config, %{lanx: lanx, params: params})
   end
 
-  describe "start_link" do
+  describe "start_link/1" do
     test "starts a Lanx instance", config do
       assert Process.whereis(config.test)
     end
@@ -60,6 +60,16 @@ defmodule LanxTest do
 
       Process.flag(:trap_exit, true)
       assert {:error, {:shutdown, {_, _, :failed_to_start_node}}} = Lanx.start_link(params)
+    end
+  end
+
+  describe "run/2" do
+    test "runs a job", config do
+      {_, spec} = config.params[:spec]
+      eager_hash = spec[:job].(config.test)
+      queued_hash = Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
+
+      assert queued_hash == eager_hash
     end
   end
 end

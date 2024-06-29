@@ -56,6 +56,16 @@ defmodule Lanx do
     Supervisor.start_link(children, strategy: :one_for_all, max_restarts: 0, name: supervisor)
   end
 
+  @doc """
+  Runs a job an a server.
+
+  Accepts a lanx instance and an anonymous run function. The run function
+  accepts the pid of the assinged server, and handles running the job on the server.
+  """
+  def run(name, handler) when is_function(handler) do
+    handler.(GenServer.call(name, :pid))
+  end
+
   # Server callbakcs
 
   @impl true
@@ -84,5 +94,10 @@ defmodule Lanx do
   @impl true
   def handle_call(:k, _, state) do
     {:reply, length(state.pids), state}
+  end
+
+  @impl true
+  def handle_call(:pid, _, state) do
+    {:reply, Enum.random(state.pids), state}
   end
 end
