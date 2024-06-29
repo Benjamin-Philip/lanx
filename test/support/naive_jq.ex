@@ -14,7 +14,7 @@ defmodule NaiveJQ do
         job -> raise ArgumentError, message: "job must be a function, got: #{inspect(job)}"
       end
 
-    GenServer.start_link(__MODULE__, job, name: opts[:name])
+    GenServer.start_link(__MODULE__, job, Keyword.delete(opts, :job))
   end
 
   def await(server, item) do

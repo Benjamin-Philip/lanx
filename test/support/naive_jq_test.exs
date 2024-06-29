@@ -12,6 +12,10 @@ defmodule NaiveJQTest do
       assert Process.whereis(config.test)
     end
 
+    test "starts a unnamed NaiveJQ instance", config do
+      assert start_supervised!({NaiveJQ, Keyword.delete(config.params, :name)}, id: :test)
+    end
+
     test "errors on invalid job", config do
       assert_raise ArgumentError, "job must be a function, got: \"foo\"", fn ->
         NaiveJQ.start_link(Keyword.put(config.params, :job, "foo"))

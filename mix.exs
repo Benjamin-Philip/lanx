@@ -6,6 +6,7 @@ defmodule Lanx.MixProject do
       app: :lanx,
       version: "0.1.0",
       elixir: "~> 1.16",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
 
@@ -29,9 +30,13 @@ defmodule Lanx.MixProject do
     ]
   end
 
+  defp elixirc_paths(:test), do: ~w(lib test test/support)
+  defp elixirc_paths(_), do: ~w(lib)
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:flame, "~> 0.1.12"},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
