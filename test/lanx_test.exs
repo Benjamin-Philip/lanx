@@ -23,6 +23,26 @@ defmodule LanxTest do
       assert GenServer.call(config.test, :k) == config.params[:k]
     end
 
+    test "correctly creates jobs tables", config do
+      {jobs, _} = Lanx.tables(config.test)
+      assert :ets.tab2list(jobs) == []
+    end
+
+    test "correctly creates workers tables", config do
+      {_, workers} = Lanx.tables(config.test)
+      workers = :ets.tab2list(workers)
+
+      assert length(workers) == config.params[:k]
+
+      for {id, pid, lambda, mu, rho} <- workers do
+        assert String.length(id) == 16
+        assert Process.alive?(pid)
+        assert lambda == 0
+        assert mu == 0
+        assert rho == 0
+      end
+    end
+
     test "errors on invalid spec", config do
       assert_raise ArgumentError, fn ->
         Lanx.start_link(Keyword.put(config.params, :spec, "foo"))
@@ -61,6 +81,12 @@ defmodule LanxTest do
       Process.flag(:trap_exit, true)
       assert {:error, {:shutdown, {_, _, :failed_to_start_node}}} = Lanx.start_link(params)
     end
+  end
+
+  test "tables/2 returns ets tables", config do
+    assert {jobs, workers} = Lanx.tables(config.test)
+    assert :ets.info(jobs) != :undefined
+    assert :ets.info(workers) != :undefined
   end
 
   describe "run/2" do

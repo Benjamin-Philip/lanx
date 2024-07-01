@@ -57,6 +57,11 @@ defmodule Lanx do
   end
 
   @doc """
+  Returns the job and worker ets tables of the Lanx instance given a name.
+  """
+  def tables(name), do: GenServer.call(name, :tables)
+
+  @doc """
   Runs a job an a server.
 
   Accepts a lanx instance and an anonymous run function. The run function
@@ -87,7 +92,25 @@ defmodule Lanx do
     if Enum.any?(pids, fn element -> element == :error end) do
       {:stop, :failed_to_start_node}
     else
-      {:ok, %{pool: opts[:pool], k: opts[:k], pids: pids}}
+      jobs =
+        :ets.new(:"#{opts[:name]}_jobs", [
+          :set,
+          :public,
+          {:read_concurrency, true},
+          {:write_concurrency, true}
+        ])
+
+      workers =
+        :ets.new(:"#{opts[:name]}_workers", [
+          :set,
+          :public,
+          {:read_concurrency, true},
+          {:write_concurrency, true}
+        ])
+
+      :ets.insert(workers, Enum.map(pids, fn pid -> {worker_id(), pid, 0, 0, 0} end))
+
+      {:ok, %{jobs: jobs, workers: workers, pool: opts[:pool], k: opts[:k], pids: pids}}
     end
   end
 
@@ -97,7 +120,14 @@ defmodule Lanx do
   end
 
   @impl true
+  def handle_call(:tables, _, state) do
+    {:reply, {state.jobs, state.workers}, state}
+  end
+
+  @impl true
   def handle_call(:pid, _, state) do
     {:reply, Enum.random(state.pids), state}
   end
+
+  defp worker_id(), do: :crypto.strong_rand_bytes(10) |> :base64.encode()
 end
