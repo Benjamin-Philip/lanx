@@ -37,6 +37,7 @@ defmodule Lanx.MixProject do
   defp deps do
     [
       {:flame, "~> 0.1.12"},
+      {:telemetry, "~> 1.2.1"},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end

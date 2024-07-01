@@ -5,6 +5,8 @@ defmodule Lanx do
 
   use GenServer
 
+  alias Lanx.Helpers
+
   # Client-side
 
   @doc """
@@ -68,7 +70,12 @@ defmodule Lanx do
   accepts the pid of the assinged server, and handles running the job on the server.
   """
   def run(name, handler) when is_function(handler) do
-    handler.(GenServer.call(name, :pid))
+    :telemetry.span([:lanx, :execute], %{}, fn ->
+      pid = GenServer.call(name, :pid)
+      meta = %{worker: pid}
+      result = :telemetry.span([:lanx, :worker, :execute], meta, fn -> {handler.(pid), meta} end)
+      {result, %{}}
+    end)
   end
 
   # Server callbakcs
@@ -108,7 +115,7 @@ defmodule Lanx do
           {:write_concurrency, true}
         ])
 
-      :ets.insert(workers, Enum.map(pids, fn pid -> {worker_id(), pid, 0, 0, 0} end))
+      :ets.insert(workers, Enum.map(pids, fn pid -> {Helpers.worker_id(), pid, 0, 0, 0} end))
 
       {:ok, %{jobs: jobs, workers: workers, pool: opts[:pool], k: opts[:k], pids: pids}}
     end
@@ -129,5 +136,16 @@ defmodule Lanx do
     {:reply, Enum.random(state.pids), state}
   end
 
-  defp worker_id(), do: :crypto.strong_rand_bytes(10) |> :base64.encode()
+  @impl true
+  def handle_info({:delete_job, id, expiry}, state) do
+    [{_, _, _, done?, _}] = :ets.lookup(state.jobs, id)
+
+    if done? do
+      :ets.delete(state.jobs, id)
+    else
+      Process.send_after(self(), {:delete_job, id, expiry}, expiry)
+    end
+
+    {:noreply, state}
+  end
 end

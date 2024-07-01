@@ -3,15 +3,7 @@ defmodule LanxTest do
   doctest Lanx
 
   setup config do
-    pool_name = Module.concat([LanxTest, config.test, Runner])
-    pool = [name: pool_name, min: 0, max: 10, max_concurrency: 1]
-
-    spec =
-      {NaiveJQ, [job: fn atom -> :crypto.hash(:sha, Atom.to_string(atom)) end]}
-
-    params = [name: config.test, pool: pool, k: 10, spec: spec]
-    lanx = start_supervised!({Lanx, params}, id: config.test)
-    Map.merge(config, %{lanx: lanx, params: params})
+    Map.merge(config, Lanx.TestHelpers.setup_lanx(config))
   end
 
   describe "start_link/1" do
@@ -96,6 +88,12 @@ defmodule LanxTest do
       queued_hash = Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
 
       assert queued_hash == eager_hash
+    end
+
+    test "foo test", config do
+      Enum.each(0..10, fn _ ->
+        Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, :"#{:rand.normal()}") end)
+      end)
     end
   end
 end
