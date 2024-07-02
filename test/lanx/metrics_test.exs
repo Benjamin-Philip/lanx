@@ -47,26 +47,6 @@ defmodule Lanx.MetricsTest do
       assert_in_delta t2, t1, 120
     end
 
-    test "start schedules job deletion", config do
-      system_execute()
-      assert length(:ets.tab2list(config.jobs)) == 1
-
-      Process.sleep(config.expiry)
-      assert length(:ets.tab2list(config.jobs)) == 0
-    end
-
-    test "start job deletion doesn't timeout jobs", config do
-      system_execute(750)
-      assert length(:ets.tab2list(config.jobs)) == 1
-
-      # TODO: Fix race conditions in test
-      # Process.sleep(config.expiry)
-      assert length(:ets.tab2list(config.jobs)) == 1
-
-      Process.sleep(config.expiry)
-      assert length(:ets.tab2list(config.jobs)) == 0
-    end
-
     test "stop updates jobs", config do
       system_execute()
       system_execute()
@@ -77,6 +57,14 @@ defmodule Lanx.MetricsTest do
       t2 = Enum.at(durations, 1)
       t1 = Enum.at(durations, 0)
       assert_in_delta t2, t1, 10
+    end
+
+    test "stop schedules job deletion", config do
+      system_execute()
+      assert length(:ets.tab2list(config.jobs)) == 1
+
+      Process.sleep(config.expiry)
+      assert length(:ets.tab2list(config.jobs)) == 0
     end
 
     test "exception updates jobs", config do

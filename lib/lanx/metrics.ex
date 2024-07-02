@@ -14,25 +14,25 @@ defmodule Lanx.Metrics do
         [:lanx, :execute, :start],
         %{system_time: native_time},
         %{id: id},
-        %{lanx: lanx, jobs: jobs, expiry: expiry}
+        %{jobs: jobs}
       ) do
     time = System.convert_time_unit(native_time, :native, :millisecond)
 
     :ets.insert_new(jobs, {id, nil, time, nil, nil})
-
-    Process.send_after(lanx, {:delete_job, id, expiry}, expiry)
   end
 
   def handle_event(
         [:lanx, :execute, :stop],
         %{duration: native_duration},
         %{id: id},
-        %{jobs: jobs}
+        %{lanx: lanx, jobs: jobs, expiry: expiry}
       ) do
     duration = System.convert_time_unit(native_duration, :native, :millisecond)
 
     [{id, worker, time, nil, nil}] = :ets.lookup(jobs, id)
     :ets.insert(jobs, {id, worker, time, duration, nil})
+
+    Process.send_after(lanx, {:delete_job, id, expiry}, expiry)
   end
 
   def handle_event(
