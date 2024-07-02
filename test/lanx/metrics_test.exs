@@ -7,6 +7,9 @@ defmodule Lanx.MetricsTest do
     handler = "#{config.test}-handler"
     expiry = 250
 
+    lanx = Lanx.TestHelpers.setup_lanx(config)
+    {jobs, workers} = Lanx.tables(config.test)
+
     :telemetry.attach_many(
       handler,
       [
@@ -15,13 +18,10 @@ defmodule Lanx.MetricsTest do
         [:lanx, :execute, :exception]
       ],
       &Metrics.handle_event/4,
-      %{lanx: config.test, expiry: expiry}
+      %{lanx: config.test, jobs: jobs, workers: workers, expiry: expiry}
     )
 
     on_exit(fn -> :telemetry.detach(handler) end)
-
-    lanx = Lanx.TestHelpers.setup_lanx(config)
-    {jobs, workers} = Lanx.tables(config.test)
 
     config
     |> Map.merge(lanx)

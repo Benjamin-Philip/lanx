@@ -14,9 +14,8 @@ defmodule Lanx.Metrics do
         [:lanx, :execute, :start],
         %{system_time: native_time},
         %{id: id},
-        %{lanx: lanx, expiry: expiry}
+        %{lanx: lanx, jobs: jobs, expiry: expiry}
       ) do
-    {jobs, _workers} = Lanx.tables(lanx)
     time = System.convert_time_unit(native_time, :native, :millisecond)
 
     :ets.insert_new(jobs, {id, nil, time, nil, nil})
@@ -28,9 +27,8 @@ defmodule Lanx.Metrics do
         [:lanx, :execute, :stop],
         %{duration: native_duration},
         %{id: id},
-        %{lanx: lanx}
+        %{jobs: jobs}
       ) do
-    {jobs, _workers} = Lanx.tables(lanx)
     duration = System.convert_time_unit(native_duration, :native, :millisecond)
 
     [{id, worker, time, nil, nil}] = :ets.lookup(jobs, id)
@@ -41,9 +39,8 @@ defmodule Lanx.Metrics do
         [:lanx, :execute, :exception],
         %{duration: native_duration},
         %{id: id},
-        %{lanx: lanx}
+        %{jobs: jobs}
       ) do
-    {jobs, _workers} = Lanx.tables(lanx)
     duration = System.convert_time_unit(native_duration, :native, :millisecond)
 
     [{id, worker, time, nil, nil}] = :ets.lookup(jobs, id)
