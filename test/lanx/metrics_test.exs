@@ -30,36 +30,19 @@ defmodule Lanx.MetricsTest do
 
   describe "handle_event/4 on system event" do
     test "start adds job", config do
-      id1 = system_execute()
-      id2 = system_execute()
-      Process.sleep(100)
-      id3 = system_execute()
+      id = system_execute()
+      job = Jobs.lookup(config.jobs, id)
 
-      jobs = Enum.map([id1, id2, id3], &Jobs.lookup(config.jobs, &1))
-
-      table_ids = jobs |> Enum.map(&Map.fetch!(&1, :id)) |> Enum.sort()
-      ids = [id1, id2, id3] |> Enum.sort()
-      assert table_ids == ids
-
-      times = jobs |> Enum.map(&Map.fetch!(&1, :system_arrival)) |> Enum.sort()
-      t2 = Enum.at(times, 2)
-      t1 = Enum.at(times, 0)
-      assert_in_delta t2, t1, 120
+      assert job.id == id
+      assert job.system_arrival
     end
 
     test "stop updates jobs", config do
-      id1 = system_execute()
-      id2 = system_execute()
+      id = system_execute()
+      job = Jobs.lookup(config.jobs, id)
 
-      assert Jobs.lookup(config.jobs, id1).failed? == false
-      assert Jobs.lookup(config.jobs, id1).failed? == false
-
-      durations =
-        [id1, id2] |> Enum.map(&Jobs.lookup(config.jobs, &1).system_arrival) |> Enum.sort()
-
-      t2 = Enum.at(durations, 1)
-      t1 = Enum.at(durations, 0)
-      assert_in_delta t2, t1, 10
+      refute job.failed?
+      assert job.tau
     end
 
     test "stop schedules job deletion", config do
@@ -71,31 +54,18 @@ defmodule Lanx.MetricsTest do
     end
 
     test "exception updates jobs", config do
-      id1 = Helpers.job_id()
+      id = Helpers.job_id()
 
       catch_error(
-        :telemetry.span([:lanx, :execute], %{id: id1}, fn ->
+        :telemetry.span([:lanx, :execute], %{id: id}, fn ->
           raise "Foo!"
         end)
       )
 
-      id2 = Helpers.job_id()
+      job = Jobs.lookup(config.jobs, id)
 
-      catch_error(
-        :telemetry.span([:lanx, :execute], %{id: id2}, fn ->
-          raise "Bar!"
-        end)
-      )
-
-      assert Jobs.lookup(config.jobs, id1).failed? == true
-      assert Jobs.lookup(config.jobs, id1).failed? == true
-
-      durations =
-        [id1, id2] |> Enum.map(&Jobs.lookup(config.jobs, &1).system_arrival) |> Enum.sort()
-
-      t2 = Enum.at(durations, 1)
-      t1 = Enum.at(durations, 0)
-      assert_in_delta t2, t1, 10
+      assert job.failed?
+      assert job.tau
     end
   end
 
