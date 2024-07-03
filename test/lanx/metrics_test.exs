@@ -1,7 +1,7 @@
 defmodule Lanx.MetricsTest do
   use ExUnit.Case, async: false
 
-  alias Lanx.{Metrics, Helpers}
+  alias Lanx.{Metrics, Helpers, Jobs}
 
   setup config do
     handler = "#{config.test}-handler"
@@ -35,24 +35,27 @@ defmodule Lanx.MetricsTest do
       Process.sleep(100)
       id3 = system_execute()
 
-      jobs = :ets.match(config.jobs, {:"$0", :_, :"$1", :_, :_})
+      jobs = Enum.map([id1, id2, id3], &Jobs.lookup(config.jobs, &1))
 
-      table_ids = jobs |> Enum.map(&Enum.at(&1, 0)) |> Enum.sort()
+      table_ids = jobs |> Enum.map(&Map.fetch!(&1, :id)) |> Enum.sort()
       ids = [id1, id2, id3] |> Enum.sort()
       assert table_ids == ids
 
-      times = jobs |> Enum.map(&Enum.at(&1, 1)) |> Enum.sort()
+      times = jobs |> Enum.map(&Map.fetch!(&1, :system_arrival)) |> Enum.sort()
       t2 = Enum.at(times, 2)
       t1 = Enum.at(times, 0)
       assert_in_delta t2, t1, 120
     end
 
     test "stop updates jobs", config do
-      system_execute()
-      system_execute()
+      id1 = system_execute()
+      id2 = system_execute()
+
+      assert Jobs.lookup(config.jobs, id1).failed? == false
+      assert Jobs.lookup(config.jobs, id1).failed? == false
 
       durations =
-        :ets.match(config.jobs, {:_, :_, :_, :"$0", :_}) |> List.flatten() |> Enum.sort()
+        [id1, id2] |> Enum.map(&Jobs.lookup(config.jobs, &1).system_arrival) |> Enum.sort()
 
       t2 = Enum.at(durations, 1)
       t1 = Enum.at(durations, 0)
@@ -61,27 +64,34 @@ defmodule Lanx.MetricsTest do
 
     test "stop schedules job deletion", config do
       system_execute()
-      assert length(:ets.tab2list(config.jobs)) == 1
+      assert Jobs.count(config.jobs) == 1
 
-      Process.sleep(config.expiry)
-      assert length(:ets.tab2list(config.jobs)) == 0
+      Process.sleep(config.expiry + 2)
+      assert Jobs.count(config.jobs) == 0
     end
 
     test "exception updates jobs", config do
+      id1 = Helpers.job_id()
+
       catch_error(
-        :telemetry.span([:lanx, :execute], %{id: Helpers.job_id()}, fn ->
+        :telemetry.span([:lanx, :execute], %{id: id1}, fn ->
           raise "Foo!"
         end)
       )
 
+      id2 = Helpers.job_id()
+
       catch_error(
-        :telemetry.span([:lanx, :execute], %{id: Helpers.job_id()}, fn ->
+        :telemetry.span([:lanx, :execute], %{id: id2}, fn ->
           raise "Bar!"
         end)
       )
 
+      assert Jobs.lookup(config.jobs, id1).failed? == true
+      assert Jobs.lookup(config.jobs, id1).failed? == true
+
       durations =
-        :ets.match(config.jobs, {:_, :_, :_, :_, :"$0"}) |> List.flatten() |> Enum.sort()
+        [id1, id2] |> Enum.map(&Jobs.lookup(config.jobs, &1).system_arrival) |> Enum.sort()
 
       t2 = Enum.at(durations, 1)
       t1 = Enum.at(durations, 0)

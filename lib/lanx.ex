@@ -137,15 +137,8 @@ defmodule Lanx do
   end
 
   @impl true
-  def handle_info({:delete_job, id, expiry}, state) do
-    [{_, _, _, done?, _}] = :ets.lookup(state.jobs, id)
-
-    if done? do
-      :ets.delete(state.jobs, id)
-    else
-      Process.send_after(self(), {:delete_job, id, expiry}, expiry)
-    end
-
+  def handle_info({:delete_job, id}, state) do
+    Lanx.Jobs.delete(state.jobs, id)
     {:noreply, state}
   end
 end

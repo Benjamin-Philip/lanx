@@ -1,6 +1,8 @@
 defmodule Lanx.Metrics do
   @moduledoc false
 
+  alias Lanx.Jobs
+
   # This module takes care of collecting the metrics for Lanx.
   # It stores this data in standard queueing theory notation.
 
@@ -18,7 +20,7 @@ defmodule Lanx.Metrics do
       ) do
     time = System.convert_time_unit(native_time, :native, :millisecond)
 
-    :ets.insert_new(jobs, {id, nil, time, nil, nil})
+    Jobs.insert(jobs, %{id: id, system_arrival: time})
   end
 
   def handle_event(
@@ -28,11 +30,9 @@ defmodule Lanx.Metrics do
         %{lanx: lanx, jobs: jobs, expiry: expiry}
       ) do
     duration = System.convert_time_unit(native_duration, :native, :millisecond)
+    Jobs.update(jobs, %{id: id, tau: duration, failed?: false})
 
-    [{id, worker, time, nil, nil}] = :ets.lookup(jobs, id)
-    :ets.insert(jobs, {id, worker, time, duration, nil})
-
-    Process.send_after(lanx, {:delete_job, id, expiry}, expiry)
+    Process.send_after(lanx, {:delete_job, id}, expiry)
   end
 
   def handle_event(
@@ -43,7 +43,6 @@ defmodule Lanx.Metrics do
       ) do
     duration = System.convert_time_unit(native_duration, :native, :millisecond)
 
-    [{id, worker, time, nil, nil}] = :ets.lookup(jobs, id)
-    :ets.insert(jobs, {id, worker, time, nil, duration})
+    Jobs.update(jobs, %{id: id, tau: duration, failed?: true})
   end
 end
