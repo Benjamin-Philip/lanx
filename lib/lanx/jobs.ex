@@ -59,6 +59,6 @@ defmodule Lanx.Jobs do
   @doc """
   Counts the number of jobs given a table
   """
-  # match specification generated witb ets:fun2ms/1
+  # match specification generated with :ets.fun2ms(fn _x -> true end)
   def count(table), do: :ets.select_count(table, [{:"$1", [], [true]}])
 end
