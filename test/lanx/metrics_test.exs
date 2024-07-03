@@ -15,7 +15,8 @@ defmodule Lanx.MetricsTest do
       [
         [:lanx, :execute, :start],
         [:lanx, :execute, :stop],
-        [:lanx, :execute, :exception]
+        [:lanx, :execute, :exception],
+        [:lanx, :execute, :worker, :start]
       ],
       &Metrics.handle_event/4,
       %{lanx: config.test, jobs: jobs, workers: workers, expiry: expiry}
@@ -67,19 +68,37 @@ defmodule Lanx.MetricsTest do
       assert job.failed?
       assert job.tau
     end
+
+    test "exception schedules job deletion", config do
+      catch_error(
+        :telemetry.span([:lanx, :execute], %{id: Helpers.job_id()}, fn ->
+          raise "Foo!"
+        end)
+      )
+
+      assert Jobs.count(config.jobs) == 1
+
+      Process.sleep(config.expiry + 2)
+      assert Jobs.count(config.jobs) == 0
+    end
   end
 
-  test "exception schedules job deletion", config do
-    catch_error(
-      :telemetry.span([:lanx, :execute], %{id: Helpers.job_id()}, fn ->
-        raise "Foo!"
-      end)
-    )
+  test "handle_event/4 on worker start", config do
+    id = Helpers.job_id()
+    worker = Helpers.worker_id()
+    meta1 = %{id: id}
+    meta2 = %{id: id, worker: worker}
 
-    assert Jobs.count(config.jobs) == 1
+    :telemetry.span([:lanx, :execute], meta1, fn ->
+      {:telemetry.span([:lanx, :execute, :worker], meta2, fn ->
+         {Process.sleep(Enum.random(0..10)), meta2}
+       end), meta1}
+    end)
 
-    Process.sleep(config.expiry + 2)
-    assert Jobs.count(config.jobs) == 0
+    job = Jobs.lookup(config.jobs, id)
+
+    assert job.worker == worker
+    assert job.worker_arrival
   end
 
   defp system_execute(time \\ Enum.random(0..10)) do

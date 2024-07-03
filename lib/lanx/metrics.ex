@@ -47,4 +47,15 @@ defmodule Lanx.Metrics do
 
     Process.send_after(lanx, {:delete_job, id}, expiry)
   end
+
+  def handle_event(
+        [:lanx, :execute, :worker, :start],
+        %{system_time: native_time},
+        %{id: id, worker: worker},
+        %{jobs: jobs}
+      ) do
+    time = System.convert_time_unit(native_time, :native, :millisecond)
+
+    Jobs.update(jobs, %{id: id, worker: worker, worker_arrival: time})
+  end
 end
