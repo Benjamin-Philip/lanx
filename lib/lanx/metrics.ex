@@ -39,10 +39,12 @@ defmodule Lanx.Metrics do
         [:lanx, :execute, :exception],
         %{duration: native_duration},
         %{id: id},
-        %{jobs: jobs}
+        %{lanx: lanx, jobs: jobs, expiry: expiry}
       ) do
     duration = System.convert_time_unit(native_duration, :native, :millisecond)
 
     Jobs.update(jobs, %{id: id, tau: duration, failed?: true})
+
+    Process.send_after(lanx, {:delete_job, id}, expiry)
   end
 end

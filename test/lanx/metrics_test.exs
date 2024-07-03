@@ -99,6 +99,19 @@ defmodule Lanx.MetricsTest do
     end
   end
 
+  test "exception schedules job deletion", config do
+    catch_error(
+      :telemetry.span([:lanx, :execute], %{id: Helpers.job_id()}, fn ->
+        raise "Foo!"
+      end)
+    )
+
+    assert Jobs.count(config.jobs) == 1
+
+    Process.sleep(config.expiry + 2)
+    assert Jobs.count(config.jobs) == 0
+  end
+
   defp system_execute(time \\ Enum.random(0..10)) do
     id = Helpers.job_id()
     meta = %{id: id}
