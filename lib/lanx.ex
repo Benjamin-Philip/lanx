@@ -176,6 +176,15 @@ defmodule Lanx do
   @impl true
   def handle_info(:self_assess_workers, state) do
     Process.send_after(self(), :self_assess_workers, state.assess_inter)
+    assess_workers(state)
+  end
+
+  @impl true
+  def handle_info({:assess_worker, worker}, state) do
+    updates = Statistics.assess_worker(Jobs.lookup_by_worker(state.jobs, worker))
+    Workers.update(state.workers, updates)
+
+    {:noreply, state}
   end
 
   defp assess_workers(state) do

@@ -58,4 +58,12 @@ defmodule Lanx.Metrics do
 
     Jobs.update(jobs, %{id: id, worker: worker, worker_arrival: time})
   end
+
+  def handle_event(
+        [:lanx, :execute, :worker, :stop],
+        _,
+        %{worker: worker},
+        %{lanx: lanx}
+      ),
+      do: send(lanx, {:assess_worker, worker})
 end

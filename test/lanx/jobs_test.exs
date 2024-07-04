@@ -39,6 +39,20 @@ defmodule Lanx.JobsTest do
     assert Jobs.lookup(config.table, job.id) == merged
   end
 
+  test "lookup_by_worker/2", config do
+    worker = Helpers.worker_id()
+    job = %{id: Helpers.job_id(), worker: worker, system_arrival: :erlang.system_time()}
+    Jobs.insert(config.table, job)
+
+    merged =
+      Map.merge(
+        Map.from_keys([:worker, :system_arrival, :worker_arrival, :tau, :failed?], nil),
+        job
+      )
+
+    assert Jobs.lookup_by_worker(config.table, worker) == [merged]
+  end
+
   test "update/2", config do
     id = Helpers.job_id()
     time = :erlang.system_time()

@@ -110,7 +110,30 @@ defmodule LanxTest do
     Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time + 2, tau: 10})
 
     send(config.test, :assess_workers)
-    Process.sleep(10)
+    Process.sleep(1)
+    worker = Workers.lookup(workers, worker)
+
+    assert worker.lambda == 1
+    assert worker.mu == 0.1
+    assert worker.rho == 10
+  end
+
+  test "assesses worker on info", config do
+    {jobs, workers} = Lanx.tables(config.test)
+    worker = :ets.first(workers)
+
+    send(config.test, {:assess_worker, worker})
+    Process.sleep(1)
+    assert Process.alive?(config.lanx)
+
+    time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+
+    Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time, tau: 10})
+    Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time + 2, tau: 10})
+
+    send(config.test, {:assess_worker, worker})
+    Process.sleep(1)
+
     worker = Workers.lookup(workers, worker)
 
     assert worker.lambda == 1

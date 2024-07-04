@@ -1,6 +1,7 @@
 defmodule Lanx.MetricsTest do
   use ExUnit.Case, async: false
 
+  alias Lanx.Workers
   alias Lanx.{Metrics, Helpers, Jobs}
 
   setup config do
@@ -16,7 +17,8 @@ defmodule Lanx.MetricsTest do
         [:lanx, :execute, :start],
         [:lanx, :execute, :stop],
         [:lanx, :execute, :exception],
-        [:lanx, :execute, :worker, :start]
+        [:lanx, :execute, :worker, :start],
+        [:lanx, :execute, :worker, :stop]
       ],
       &Metrics.handle_event/4,
       %{lanx: config.test, jobs: jobs, workers: workers, expiry: expiry}
@@ -99,6 +101,24 @@ defmodule Lanx.MetricsTest do
 
     assert job.worker == worker
     assert job.worker_arrival
+  end
+
+  test "handle_event/4 on worker stop", config do
+    id = Helpers.job_id()
+    worker = :ets.first(config.workers)
+    meta1 = %{id: id}
+    meta2 = %{id: id, worker: worker}
+
+    :telemetry.span([:lanx, :execute], meta1, fn ->
+      {:telemetry.span([:lanx, :execute, :worker], meta2, fn ->
+         {Process.sleep(Enum.random(0..10)), meta2}
+       end), meta1}
+    end)
+
+    Process.sleep(1)
+
+    worker = Workers.lookup(config.workers, worker)
+    assert worker.mu != 0
   end
 
   defp system_execute(time \\ Enum.random(0..10)) do

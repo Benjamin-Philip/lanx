@@ -39,10 +39,21 @@ defmodule Lanx.Statistics do
     # ∴ λ = n/(a_n + a_1)
 
     arrivals = jobs |> Enum.map(fn job -> job.system_arrival end) |> Enum.sort()
-    sigma_theta = Enum.at(arrivals, -1) - Enum.at(arrivals, 0)
+
+    sigma_theta =
+      case Enum.at(arrivals, -1) - Enum.at(arrivals, 0) do
+        0 -> 1
+        x -> x
+      end
+
     lambda = n / sigma_theta
 
-    sigma_tau = jobs |> Enum.map(fn job -> job.tau end) |> Enum.sum()
+    sigma_tau =
+      case jobs |> Enum.map(fn job -> job.tau end) |> Enum.sum() do
+        0 -> 1
+        x -> x
+      end
+
     mu = n / sigma_tau
 
     rho = sigma_tau / sigma_theta

@@ -43,6 +43,7 @@ defmodule Lanx.Workers do
   end
 
   def update(table, updates) when is_list(updates), do: Enum.each(updates, &update(table, &1))
+  def update(_table, nil), do: nil
 
   @doc """
   Deletes a worker given table and id

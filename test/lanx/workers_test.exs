@@ -54,6 +54,8 @@ defmodule Lanx.WorkersTest do
     Workers.update(config.table, [updates, updates])
     assert Workers.lookup(config.table, id) == merged
 
+    assert Workers.update(config.table, nil) == nil
+
     assert_raise ArgumentError, "Workers must have an id, got: #{inspect(%{})}", fn ->
       Workers.insert(config.table, %{})
     end
