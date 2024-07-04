@@ -46,8 +46,13 @@ defmodule Lanx.WorkersTest do
       rho: 3
     }
 
+    merged = Map.merge(worker, updates)
+
     Workers.update(config.table, updates)
-    assert Workers.lookup(config.table, id) == Map.merge(worker, updates)
+    assert Workers.lookup(config.table, id) == merged
+
+    Workers.update(config.table, [updates, updates])
+    assert Workers.lookup(config.table, id) == merged
 
     assert_raise ArgumentError, "Workers must have an id, got: #{inspect(%{})}", fn ->
       Workers.insert(config.table, %{})
@@ -64,5 +69,12 @@ defmodule Lanx.WorkersTest do
   test "count/1", config do
     Workers.insert(config.table, %{id: Helpers.worker_id()})
     assert Workers.count(config.table) == 1
+  end
+
+  test "dump/1", config do
+    id = Helpers.worker_id()
+    Workers.insert(config.table, %{id: id})
+
+    assert Workers.dump(config.table) == [%{id: id, pid: nil, lambda: 0, mu: 0, rho: 0}]
   end
 end

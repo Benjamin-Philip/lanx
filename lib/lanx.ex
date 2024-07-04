@@ -5,7 +5,8 @@ defmodule Lanx do
 
   use GenServer
 
-  alias Lanx.Helpers
+  alias Lanx.Statistics
+  alias Lanx.{Helpers, Statistics, Jobs, Workers}
 
   # Client-side
 
@@ -16,19 +17,34 @@ defmodule Lanx do
 
     * `:name` - The name of the instance.
 
-    * `:spec` - The spec of the process to be started. Processes must be unnamed.
+    * `:spec` - The spec of the process to be started. Processes must be
+      unnamed.
 
     * `:pool` - The parameters to start the FLAME pool. Overwritten and passed
       through `FLAME.Pool.child_spec/1`.
 
     * `:k` - The number of servers.
+
+    * `:assess_inter` - The interval between workers assessments in
+      milliseconds.
+
   """
   def start_link(opts) do
-    Keyword.validate!(opts, [:name, :spec, :pool, :k])
+    Keyword.validate!(opts, [:name, :spec, :pool, :k, :assess_inter])
 
     case Keyword.fetch!(opts, :k) do
       k when is_integer(k) and k > 0 -> k
       k -> raise ArgumentError, message: "k must be a natural number, got: #{inspect(k)}"
+    end
+
+    case Keyword.fetch!(opts, :assess_inter) do
+      assess when is_integer(assess) and assess > 0 ->
+        assess
+
+      assess ->
+        raise ArgumentError,
+          message:
+            "assess_inter must be a natural number in milliseconds, got: #{inspect(assess)}"
     end
 
     pool = Keyword.fetch!(opts, :pool)
@@ -115,9 +131,21 @@ defmodule Lanx do
           {:write_concurrency, true}
         ])
 
-      :ets.insert(workers, Enum.map(pids, fn pid -> {Helpers.worker_id(), pid, 0, 0, 0} end))
+      Enum.map(pids, fn pid ->
+        Workers.insert(workers, %{id: Helpers.worker_id(), pid: pid})
+      end)
 
-      {:ok, %{jobs: jobs, workers: workers, pool: opts[:pool], k: opts[:k], pids: pids}}
+      Process.send_after(self(), :self_assess_workers, opts[:assess_inter])
+
+      {:ok,
+       %{
+         jobs: jobs,
+         workers: workers,
+         pool: opts[:pool],
+         k: opts[:k],
+         pids: pids,
+         assess_inter: opts[:assess_inter]
+       }}
     end
   end
 
@@ -139,6 +167,21 @@ defmodule Lanx do
   @impl true
   def handle_info({:delete_job, id}, state) do
     Lanx.Jobs.delete(state.jobs, id)
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:assess_workers, state), do: assess_workers(state)
+
+  @impl true
+  def handle_info(:self_assess_workers, state) do
+    Process.send_after(self(), :self_assess_workers, state.assess_inter)
+  end
+
+  defp assess_workers(state) do
+    updates = Statistics.assess_workers(Workers.dump(state.workers), Jobs.dump(state.jobs))
+    Workers.update(state.workers, updates)
+
     {:noreply, state}
   end
 end

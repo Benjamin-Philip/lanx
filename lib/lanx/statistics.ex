@@ -5,15 +5,19 @@ defmodule Lanx.Statistics do
   Assess all workers given workers and jobs
   """
   def assess_workers(workers, jobs) do
-    Enum.map(workers, fn worker ->
+    workers
+    |> Enum.map(fn worker ->
       assess_worker(Enum.filter(jobs, fn job -> job.worker == worker.id end))
     end)
+    |> Enum.filter(fn update -> update end)
   end
 
   @doc """
   Assesses a worker given jobs. Assumes all jobs belongs to the same worker as
   the first without checking.
   """
+  def assess_worker([]), do: nil
+
   def assess_worker(jobs) do
     jobs = Enum.map(jobs, fn job -> Map.put(job, :system_arrival, job.worker_arrival) end)
     [%{worker: id} | _] = jobs

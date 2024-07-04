@@ -1,6 +1,10 @@
 defmodule LanxTest do
+  alias Lanx.Workers
+  alias Lanx.Jobs
   use ExUnit.Case, async: true
   doctest Lanx
+
+  alias Lanx.Helpers
 
   setup config do
     Map.merge(config, Lanx.TestHelpers.setup_lanx(config))
@@ -73,6 +77,12 @@ defmodule LanxTest do
       Process.flag(:trap_exit, true)
       assert {:error, {:shutdown, {_, _, :failed_to_start_node}}} = Lanx.start_link(params)
     end
+
+    test "starts tables", config do
+      {jobs, workers} = Lanx.tables(config.test)
+      assert Lanx.Jobs.count(jobs)
+      assert Lanx.Workers.count(workers) == config.params[:k]
+    end
   end
 
   test "tables/2 returns ets tables", config do
@@ -89,11 +99,22 @@ defmodule LanxTest do
 
       assert queued_hash == eager_hash
     end
+  end
 
-    test "foo test", config do
-      Enum.each(0..10, fn _ ->
-        Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, :"#{:rand.normal()}") end)
-      end)
-    end
+  test "assesses workers on info", config do
+    {jobs, workers} = Lanx.tables(config.test)
+    worker = :ets.first(workers)
+    time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+
+    Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time, tau: 10})
+    Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time + 2, tau: 10})
+
+    send(config.test, :assess_workers)
+    Process.sleep(10)
+    worker = Workers.lookup(workers, worker)
+
+    assert worker.lambda == 1
+    assert worker.mu == 0.1
+    assert worker.rho == 10
   end
 end

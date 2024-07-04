@@ -27,16 +27,7 @@ defmodule Lanx.Jobs do
   Looks up a jobs givan a table and id
   """
   def lookup(table, id) do
-    [{^id, worker, system_arrival, worker_arrival, tau, failed?}] = :ets.lookup(table, id)
-
-    %{
-      id: id,
-      worker: worker,
-      system_arrival: system_arrival,
-      worker_arrival: worker_arrival,
-      tau: tau,
-      failed?: failed?
-    }
+    table |> :ets.lookup(id) |> hd |> to_map
   end
 
   @doc """
@@ -64,4 +55,24 @@ defmodule Lanx.Jobs do
   """
   # match specification generated with :ets.fun2ms(fn _x -> true end)
   def count(table), do: :ets.select_count(table, [{:"$1", [], [true]}])
+
+  @doc """
+  Dumps the contents of the table
+  """
+  def dump(table) do
+    Enum.map(:ets.tab2list(table), &to_map(&1))
+  end
+
+  defp to_map(tuple) do
+    {id, worker, system_arrival, worker_arrival, tau, failed?} = tuple
+
+    %{
+      id: id,
+      worker: worker,
+      system_arrival: system_arrival,
+      worker_arrival: worker_arrival,
+      tau: tau,
+      failed?: failed?
+    }
+  end
 end

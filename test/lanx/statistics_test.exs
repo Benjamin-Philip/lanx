@@ -60,6 +60,7 @@ defmodule Lanx.StatisticsTest do
     rho = 36
 
     assert Statistics.assess_worker(jobs) == %{id: wid, lambda: lambda, mu: mu, rho: rho}
+    assert Statistics.assess_worker([]) == nil
   end
 
   test "assess_system/1" do

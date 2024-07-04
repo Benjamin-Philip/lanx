@@ -6,7 +6,7 @@ defmodule Lanx.TestHelpers do
     spec =
       {NaiveJQ, [job: fn atom -> :crypto.hash(:sha, Atom.to_string(atom)) end]}
 
-    params = [name: config.test, pool: pool, k: 10, spec: spec]
+    params = [name: config.test, pool: pool, k: 10, spec: spec, assess_inter: 1000]
     lanx = ExUnit.Callbacks.start_supervised!({Lanx, params}, id: config.test)
 
     %{lanx: lanx, params: params}

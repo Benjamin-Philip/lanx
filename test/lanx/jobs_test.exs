@@ -72,4 +72,25 @@ defmodule Lanx.JobsTest do
     Jobs.insert(config.table, %{id: Helpers.job_id()})
     assert Jobs.count(config.table) == 1
   end
+
+  test "dump/1", config do
+    id = Helpers.job_id()
+    time = :erlang.system_time()
+
+    Jobs.insert(config.table, %{
+      id: id,
+      system_arrival: time
+    })
+
+    assert Jobs.dump(config.table) == [
+             %{
+               id: id,
+               worker: nil,
+               system_arrival: time,
+               worker_arrival: nil,
+               tau: nil,
+               failed?: nil
+             }
+           ]
+  end
 end

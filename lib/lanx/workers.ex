@@ -27,19 +27,11 @@ defmodule Lanx.Workers do
   Looks up a worker givan a table and id
   """
   def lookup(table, id) do
-    [{^id, pid, lambda, mu, rho}] = :ets.lookup(table, id)
-
-    %{
-      id: id,
-      pid: pid,
-      lambda: lambda,
-      mu: mu,
-      rho: rho
-    }
+    table |> :ets.lookup(id) |> hd |> to_map()
   end
 
   @doc """
-  Updates a job given a map. Updated jobs must have an id.
+  Updates a job given a map or a list of maps. Updated jobs must have an id.
   """
   def update(table, worker = %{id: id}) do
     worker = Map.merge(lookup(table, id), worker)
@@ -49,6 +41,8 @@ defmodule Lanx.Workers do
       {id, worker.pid, worker.lambda, worker.mu, worker.rho}
     )
   end
+
+  def update(table, updates) when is_list(updates), do: Enum.each(updates, &update(table, &1))
 
   @doc """
   Deletes a worker given table and id
@@ -60,4 +54,23 @@ defmodule Lanx.Workers do
   """
   # match specification generated with :ets.fun2ms(fn _x -> true end)
   def count(table), do: :ets.select_count(table, [{:"$1", [], [true]}])
+
+  @doc """
+  Dumps the contents of the table
+  """
+  def dump(table) do
+    Enum.map(:ets.tab2list(table), &to_map(&1))
+  end
+
+  defp to_map(tuple) do
+    {id, pid, lambda, mu, rho} = tuple
+
+    %{
+      id: id,
+      pid: pid,
+      lambda: lambda,
+      mu: mu,
+      rho: rho
+    }
+  end
 end
