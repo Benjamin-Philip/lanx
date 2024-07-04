@@ -23,6 +23,9 @@ defmodule Lanx.Jobs do
   def insert(_table, job),
     do: raise(ArgumentError, "Jobs must have an id, got: #{inspect(job)}")
 
+  @doc """
+  Looks up a jobs givan a table and id
+  """
   def lookup(table, id) do
     [{^id, worker, system_arrival, worker_arrival, tau, failed?}] = :ets.lookup(table, id)
 
