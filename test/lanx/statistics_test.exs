@@ -77,5 +77,6 @@ defmodule Lanx.StatisticsTest do
     rho = 36
 
     assert Statistics.assess_system(jobs) == %{lambda: lambda, mu: mu, rho: rho}
+    assert Statistics.assess_system([]) == %{lambda: 0, mu: 0, rho: 0}
   end
 end

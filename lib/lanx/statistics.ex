@@ -27,6 +27,8 @@ defmodule Lanx.Statistics do
   @doc """
   Assesses the system given jobs.
   """
+  def assess_system([]), do: %{lambda: 0, mu: 0, rho: 0}
+
   def assess_system(jobs) do
     n = length(jobs)
 

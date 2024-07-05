@@ -101,43 +101,88 @@ defmodule LanxTest do
     end
   end
 
-  test "assesses workers on info", config do
-    {jobs, workers} = Lanx.tables(config.test)
-    worker = :ets.first(workers)
-    time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
-
-    Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time, tau: 10})
-    Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time + 2, tau: 10})
-
-    send(config.test, :assess_workers)
-    Process.sleep(1)
-    worker = Workers.lookup(workers, worker)
-
-    assert worker.lambda == 1
-    assert worker.mu == 0.1
-    assert worker.rho == 10
+  test "metrics/1", config do
+    assert Lanx.metrics(config.test) == %{lambda: 0, mu: 0, rho: 0}
   end
 
-  test "assesses worker on info", config do
-    {jobs, workers} = Lanx.tables(config.test)
-    worker = :ets.first(workers)
+  describe "assesses" do
+    test "metrics on info", config do
+      {jobs, workers} = Lanx.tables(config.test)
+      worker = :ets.first(workers)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
 
-    send(config.test, {:assess_worker, worker})
-    Process.sleep(1)
-    assert Process.alive?(config.lanx)
+      Jobs.insert(jobs, %{
+        id: Helpers.job_id(),
+        worker: worker,
+        system_arrival: time,
+        worker_arrival: time,
+        tau: 10
+      })
 
-    time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+      Jobs.insert(jobs, %{
+        id: Helpers.job_id(),
+        worker: worker,
+        system_arrival: time + 2,
+        worker_arrival: time + 2,
+        tau: 10
+      })
 
-    Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time, tau: 10})
-    Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time + 2, tau: 10})
+      send(config.test, :assess_metrics)
+      Process.sleep(1)
 
-    send(config.test, {:assess_worker, worker})
-    Process.sleep(1)
+      metrics = Lanx.metrics(config.test)
 
-    worker = Workers.lookup(workers, worker)
+      assert metrics.lambda == 1
+      assert metrics.mu == 0.1
+      assert metrics.rho == 10
 
-    assert worker.lambda == 1
-    assert worker.mu == 0.1
-    assert worker.rho == 10
+      worker = Workers.lookup(workers, worker)
+
+      assert worker.lambda == 1
+      assert worker.mu == 0.1
+      assert worker.rho == 10
+    end
+
+    test "workers on info", config do
+      {jobs, workers} = Lanx.tables(config.test)
+      worker = :ets.first(workers)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+
+      Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time, tau: 10})
+
+      Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time + 2, tau: 10})
+
+      send(config.test, :assess_workers)
+      Process.sleep(1)
+      worker = Workers.lookup(workers, worker)
+
+      assert worker.lambda == 1
+      assert worker.mu == 0.1
+      assert worker.rho == 10
+    end
+
+    test "worker on info", config do
+      {jobs, workers} = Lanx.tables(config.test)
+      worker = :ets.first(workers)
+
+      send(config.test, {:assess_worker, worker})
+      Process.sleep(1)
+      assert Process.alive?(config.lanx)
+
+      time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+
+      Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time, tau: 10})
+
+      Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time + 2, tau: 10})
+
+      send(config.test, {:assess_worker, worker})
+      Process.sleep(1)
+
+      worker = Workers.lookup(workers, worker)
+
+      assert worker.lambda == 1
+      assert worker.mu == 0.1
+      assert worker.rho == 10
+    end
   end
 end

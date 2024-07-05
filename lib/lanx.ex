@@ -94,6 +94,11 @@ defmodule Lanx do
     end)
   end
 
+  @doc """
+  Returns the system metrics given a name.
+  """
+  def metrics(name), do: GenServer.call(name, :metrics)
+
   # Server callbakcs
 
   @impl true
@@ -135,7 +140,7 @@ defmodule Lanx do
         Workers.insert(workers, %{id: Helpers.worker_id(), pid: pid})
       end)
 
-      Process.send_after(self(), :self_assess_workers, opts[:assess_inter])
+      Process.send_after(self(), :assess_metrics, opts[:assess_inter])
 
       {:ok,
        %{
@@ -144,6 +149,7 @@ defmodule Lanx do
          pool: opts[:pool],
          k: opts[:k],
          pids: pids,
+         metrics: %{lambda: 0, mu: 0, rho: 0},
          assess_inter: opts[:assess_inter]
        }}
     end
@@ -160,6 +166,11 @@ defmodule Lanx do
   end
 
   @impl true
+  def handle_call(:metrics, _, state) do
+    {:reply, state.metrics, state}
+  end
+
+  @impl true
   def handle_call(:pid, _, state) do
     {:reply, Enum.random(state.pids), state}
   end
@@ -171,24 +182,29 @@ defmodule Lanx do
   end
 
   @impl true
-  def handle_info(:assess_workers, state), do: assess_workers(state)
-
-  @impl true
-  def handle_info(:self_assess_workers, state) do
-    Process.send_after(self(), :self_assess_workers, state.assess_inter)
-    assess_workers(state)
-  end
-
-  @impl true
-  def handle_info({:assess_worker, worker}, state) do
-    updates = Statistics.assess_worker(Jobs.lookup_by_worker(state.jobs, worker))
+  def handle_info(:assess_workers, state) do
+    updates = Statistics.assess_workers(Workers.dump(state.workers), Jobs.dump(state.jobs))
     Workers.update(state.workers, updates)
 
     {:noreply, state}
   end
 
-  defp assess_workers(state) do
-    updates = Statistics.assess_workers(Workers.dump(state.workers), Jobs.dump(state.jobs))
+  @impl true
+  def handle_info(:assess_metrics, state) do
+    Process.send_after(self(), :assess_metrics, state.assess_inter)
+
+    jobs = Jobs.dump(state.jobs)
+    metrics = Statistics.assess_system(jobs)
+
+    updates = Statistics.assess_workers(Workers.dump(state.workers), jobs)
+    Workers.update(state.workers, updates)
+
+    {:noreply, %{state | metrics: metrics}}
+  end
+
+  @impl true
+  def handle_info({:assess_worker, worker}, state) do
+    updates = Statistics.assess_worker(Jobs.lookup_by_worker(state.jobs, worker))
     Workers.update(state.workers, updates)
 
     {:noreply, state}
