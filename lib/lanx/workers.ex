@@ -31,6 +31,13 @@ defmodule Lanx.Workers do
   end
 
   @doc """
+  Returns the least utilized worker, given a table
+  """
+  def least_utilized(table) do
+    table |> dump() |> Enum.min_by(fn worker -> worker.rho end)
+  end
+
+  @doc """
   Updates a job given a map or a list of maps. Updated jobs must have an id.
   """
   def update(table, worker = %{id: id}) do

@@ -34,6 +34,17 @@ defmodule Lanx.WorkersTest do
     assert Workers.lookup(config.table, worker.id) == merged
   end
 
+  test "least_utilized/1", config do
+    worker1 = %{id: Helpers.worker_id(), pid: self(), rho: 0.75}
+    worker2 = %{id: Helpers.worker_id(), pid: self(), rho: 0}
+
+    Workers.insert(config.table, worker1)
+    Workers.insert(config.table, worker2)
+
+    worker = Workers.least_utilized(config.table)
+    assert worker.id == worker2.id
+  end
+
   test "update/2", config do
     id = Helpers.worker_id()
     worker = %{id: id, pid: self()}
