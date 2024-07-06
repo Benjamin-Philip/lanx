@@ -97,11 +97,12 @@ defmodule Lanx do
     meta1 = %{id: Helpers.job_id()}
 
     :telemetry.span([:lanx, :execute], meta1, fn ->
-      pid = GenServer.call(name, :pid)
-      meta2 = Map.put(meta1, :worker, pid)
+      {_, workers} = Lanx.tables(name)
+      worker = Workers.least_utilized(workers)
+      meta2 = Map.put(meta1, :worker, worker.id)
 
       result =
-        :telemetry.span([:lanx, :worker, :execute], meta2, fn -> {handler.(pid), meta2} end)
+        :telemetry.span([:lanx, :execute, :worker], meta2, fn -> {handler.(worker.pid), meta2} end)
 
       {result, meta1}
     end)

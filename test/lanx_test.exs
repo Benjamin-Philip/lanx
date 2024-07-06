@@ -125,7 +125,30 @@ defmodule LanxTest do
       Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
 
       {jobs, _} = Lanx.tables(config.test)
-      assert length(Jobs.dump(jobs)) == 1
+      assert [job] = Jobs.dump(jobs)
+
+      assert job.worker
+      assert job.worker_arrival
+    end
+
+    test "assesses worker", config do
+      Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
+      {jobs, workers} = Lanx.tables(config.test)
+
+      [%{worker: id}] = Jobs.dump(jobs)
+      worker = Workers.lookup(workers, id)
+
+      assert worker.rho != 0
+    end
+
+    test "selects least utilized worker", config do
+      Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
+      Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
+
+      {jobs, _} = Lanx.tables(config.test)
+      [%{id: id1}, %{id: id2}] = Jobs.dump(jobs)
+
+      assert id1 != id2
     end
   end
 
