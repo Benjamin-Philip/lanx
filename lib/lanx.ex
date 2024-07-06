@@ -5,8 +5,7 @@ defmodule Lanx do
 
   use GenServer
 
-  alias Lanx.Statistics
-  alias Lanx.{Helpers, Statistics, Jobs, Workers}
+  alias Lanx.{Helpers, Statistics, Jobs, Workers, Metrics}
 
   # Client-side
 
@@ -30,7 +29,7 @@ defmodule Lanx do
 
   """
   def start_link(opts) do
-    Keyword.validate!(opts, [:name, :spec, :pool, :k, :assess_inter])
+    Keyword.validate!(opts, [:name, :spec, :pool, :k, :assess_inter, :expiry])
 
     case Keyword.fetch!(opts, :k) do
       k when is_integer(k) and k > 0 -> k
@@ -45,6 +44,15 @@ defmodule Lanx do
         raise ArgumentError,
           message:
             "assess_inter must be a natural number in milliseconds, got: #{inspect(assess)}"
+    end
+
+    case Keyword.fetch!(opts, :expiry) do
+      expiry when is_integer(expiry) and expiry > 0 ->
+        expiry
+
+      expiry ->
+        raise ArgumentError,
+          message: "expiry must be a natural number in milliseconds, got: #{inspect(expiry)}"
     end
 
     pool = Keyword.fetch!(opts, :pool)
@@ -86,11 +94,16 @@ defmodule Lanx do
   accepts the pid of the assinged server, and handles running the job on the server.
   """
   def run(name, handler) when is_function(handler) do
-    :telemetry.span([:lanx, :execute], %{}, fn ->
+    meta1 = %{id: Helpers.job_id()}
+
+    :telemetry.span([:lanx, :execute], meta1, fn ->
       pid = GenServer.call(name, :pid)
-      meta = %{worker: pid}
-      result = :telemetry.span([:lanx, :worker, :execute], meta, fn -> {handler.(pid), meta} end)
-      {result, %{}}
+      meta2 = Map.put(meta1, :worker, pid)
+
+      result =
+        :telemetry.span([:lanx, :worker, :execute], meta2, fn -> {handler.(pid), meta2} end)
+
+      {result, meta1}
     end)
   end
 
@@ -142,6 +155,28 @@ defmodule Lanx do
 
       Process.send_after(self(), :assess_metrics, opts[:assess_inter])
 
+      handler = :"#{opts[:name]}_handler"
+
+      :telemetry.attach_many(
+        handler,
+        [
+          [:lanx, :execute, :start],
+          [:lanx, :execute, :stop],
+          [:lanx, :execute, :exception],
+          [:lanx, :execute, :worker, :start],
+          [:lanx, :execute, :worker, :stop]
+        ],
+        &Metrics.handle_event/4,
+        %{
+          lanx: opts[:name],
+          jobs: jobs,
+          workers: workers,
+          expiry: opts[:expiry]
+        }
+      )
+
+      Process.flag(:trap_exit, true)
+
       {:ok,
        %{
          jobs: jobs,
@@ -150,9 +185,15 @@ defmodule Lanx do
          k: opts[:k],
          pids: pids,
          metrics: %{lambda: 0, mu: 0, rho: 0},
-         assess_inter: opts[:assess_inter]
+         assess_inter: opts[:assess_inter],
+         handler: handler
        }}
     end
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    :telemetry.detach(state.handler)
   end
 
   @impl true

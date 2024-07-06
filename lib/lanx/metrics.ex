@@ -6,12 +6,6 @@ defmodule Lanx.Metrics do
   # This module takes care of collecting the metrics for Lanx.
   # It stores this data in standard queueing theory notation.
 
-  # @doc """
-  # Returns all the system metrics given a pid.
-  # """
-
-  # def system(pid), do: Agent.get(pid, fn metrics -> metrics end)
-  #
   def handle_event(
         [:lanx, :execute, :start],
         %{system_time: native_time},

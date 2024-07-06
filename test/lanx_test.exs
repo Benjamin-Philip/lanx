@@ -1,10 +1,8 @@
 defmodule LanxTest do
-  alias Lanx.Workers
-  alias Lanx.Jobs
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   doctest Lanx
 
-  alias Lanx.Helpers
+  alias Lanx.{Helpers, Jobs, Workers}
 
   setup config do
     Map.merge(config, Lanx.TestHelpers.setup_lanx(config))
@@ -64,6 +62,24 @@ defmodule LanxTest do
         Lanx.start_link(Keyword.put(config.params, :k, 0))
       end
     end
+
+    test "errors on invalid expiry", config do
+      assert_raise ArgumentError,
+                   "expiry must be a natural number in milliseconds, got: \"bar\"",
+                   fn ->
+                     Lanx.start_link(Keyword.put(config.params, :expiry, "bar"))
+                   end
+
+      assert_raise ArgumentError,
+                   "expiry must be a natural number in milliseconds, got: -1",
+                   fn ->
+                     Lanx.start_link(Keyword.put(config.params, :expiry, -1))
+                   end
+
+      assert_raise ArgumentError, "expiry must be a natural number in milliseconds, got: 0", fn ->
+        Lanx.start_link(Keyword.put(config.params, :expiry, 0))
+      end
+    end
   end
 
   describe "init/1" do
@@ -85,6 +101,11 @@ defmodule LanxTest do
     end
   end
 
+  test "terminate/2 detaches telemetry handlers", config do
+    stop_supervised!(config.test)
+    assert :telemetry.list_handlers([:lanx, :execute, :start]) == []
+  end
+
   test "tables/2 returns ets tables", config do
     assert {jobs, workers} = Lanx.tables(config.test)
     assert :ets.info(jobs) != :undefined
@@ -98,6 +119,13 @@ defmodule LanxTest do
       queued_hash = Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
 
       assert queued_hash == eager_hash
+    end
+
+    test "inserts job into jobs table", config do
+      Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
+
+      {jobs, _} = Lanx.tables(config.test)
+      assert length(Jobs.dump(jobs)) == 1
     end
   end
 

@@ -87,7 +87,7 @@ defmodule Lanx.MetricsTest do
 
   test "handle_event/4 on worker start", config do
     id = Helpers.job_id()
-    worker = Helpers.worker_id()
+    worker = :ets.first(config.workers)
     meta1 = %{id: id}
     meta2 = %{id: id, worker: worker}
 
