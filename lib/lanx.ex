@@ -32,32 +32,11 @@ defmodule Lanx do
 
   """
   def start_link(opts) do
-    Keyword.validate!(opts, [:name, :spec, :pool, :k, :assess_inter, :expiry])
+    opts = Keyword.validate!(opts, [:name, :spec, :pool, k: 2, assess_inter: 1000, expiry: 5000])
 
-    case Keyword.fetch!(opts, :k) do
-      k when is_integer(k) and k > 0 -> k
-      k -> raise ArgumentError, message: "k must be a natural number, got: #{inspect(k)}"
-    end
-
-    case Keyword.fetch!(opts, :assess_inter) do
-      assess when is_integer(assess) and assess > 0 ->
-        assess
-
-      assess ->
-        raise ArgumentError,
-          message:
-            "assess_inter must be a natural number in milliseconds, got: #{inspect(assess)}"
-    end
-
-    expiry =
-      case Keyword.fetch!(opts, :expiry) do
-        expiry when is_integer(expiry) and expiry > 0 ->
-          expiry
-
-        expiry ->
-          raise ArgumentError,
-            message: "expiry must be a natural number in milliseconds, got: #{inspect(expiry)}"
-      end
+    validate_natural(opts[:k], "k must be a natural number")
+    validate_natural(opts[:assess_inter], "assess_inter must be a natural number in milliseconds")
+    validate_natural(opts[:expiry], "expiry must be a natural number in milliseconds")
 
     pool = Keyword.fetch!(opts, :pool)
     name = Keyword.fetch!(opts, :name)
@@ -73,11 +52,7 @@ defmodule Lanx do
 
     spec = Supervisor.child_spec(Keyword.fetch!(opts, :spec), id: :template)
 
-    arg =
-      opts
-      |> Keyword.put(:pool, Keyword.fetch!(pool, :name))
-      |> Keyword.put(:spec, spec)
-      |> Keyword.put(:expiry, expiry)
+    arg = Keyword.merge(opts, pool: Keyword.fetch!(pool, :name), spec: spec, expiry: expiry)
 
     children = [
       pool_spec,
@@ -88,6 +63,16 @@ defmodule Lanx do
     ]
 
     Supervisor.start_link(children, strategy: :one_for_all, max_restarts: 0, name: supervisor)
+  end
+
+  defp validate_natural(val, msg) do
+    case val do
+      val when is_integer(val) and val > 0 ->
+        val
+
+      val ->
+        raise ArgumentError, message: msg <> ", got: #{inspect(val)}"
+    end
   end
 
   @doc """
