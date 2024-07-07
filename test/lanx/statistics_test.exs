@@ -15,9 +15,11 @@ defmodule Lanx.StatisticsTest do
     n = 4
     job_ids = Enum.map(0..n, fn _ -> Helpers.job_id() end)
 
+    time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
+
     arrivals =
       Enum.map(0..n, fn i ->
-        System.convert_time_unit(:erlang.system_time(), :native, :microsecond) + i
+        time + i
       end)
 
     taus = Enum.map(0..n, fn i -> 10 + 2 * i end)

@@ -49,7 +49,7 @@ defmodule Lanx do
     expiry =
       case Keyword.fetch!(opts, :expiry) do
         expiry when is_integer(expiry) and expiry > 0 ->
-          System.convert_time_unit(expiry, :millisecond, :microsecond)
+          expiry
 
         expiry ->
           raise ArgumentError,
