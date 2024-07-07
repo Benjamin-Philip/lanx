@@ -27,6 +27,9 @@ defmodule Lanx do
     * `:assess_inter` - The interval between workers assessments in
       milliseconds.
 
+    * `:expiry` - The time after completion when a job is no longer considered
+      in assessments.
+
   """
   def start_link(opts) do
     Keyword.validate!(opts, [:name, :spec, :pool, :k, :assess_inter, :expiry])
