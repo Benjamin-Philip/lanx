@@ -5,11 +5,14 @@ defmodule Lanx.MetricsTest do
   alias Lanx.{Metrics, Helpers, Jobs}
 
   setup config do
-    handler = "#{config.test}-handler"
+    handler = "#{config.test}_handler"
     expiry = 250
 
     lanx = Lanx.TestHelpers.setup_lanx(config)
     {jobs, workers} = Lanx.tables(config.test)
+
+    # Lanx starts a handler of the same name which we must detach first
+    :telemetry.detach(handler)
 
     :telemetry.attach_many(
       handler,
@@ -85,40 +88,42 @@ defmodule Lanx.MetricsTest do
     end
   end
 
-  test "handle_event/4 on worker start", config do
-    id = Helpers.job_id()
-    worker = :ets.first(config.workers)
-    meta1 = %{id: id}
-    meta2 = %{id: id, worker: worker}
+  describe "handle_event/4 on worker" do
+    test "start", config do
+      id = Helpers.job_id()
+      worker = :ets.first(config.workers)
+      meta1 = %{id: id}
+      meta2 = %{id: id, worker: worker}
 
-    :telemetry.span([:lanx, :execute], meta1, fn ->
-      {:telemetry.span([:lanx, :execute, :worker], meta2, fn ->
-         {Process.sleep(Enum.random(0..10)), meta2}
-       end), meta1}
-    end)
+      :telemetry.span([:lanx, :execute], meta1, fn ->
+        {:telemetry.span([:lanx, :execute, :worker], meta2, fn ->
+           {Process.sleep(Enum.random(0..10)), meta2}
+         end), meta1}
+      end)
 
-    job = Jobs.lookup(config.jobs, id)
+      job = Jobs.lookup(config.jobs, id)
 
-    assert job.worker == worker
-    assert job.worker_arrival
-  end
+      assert job.worker == worker
+      assert job.worker_arrival
+    end
 
-  test "handle_event/4 on worker stop", config do
-    id = Helpers.job_id()
-    worker = :ets.first(config.workers)
-    meta1 = %{id: id}
-    meta2 = %{id: id, worker: worker}
+    test "stop", config do
+      id = Helpers.job_id()
+      worker = :ets.first(config.workers)
+      meta1 = %{id: id}
+      meta2 = %{id: id, worker: worker}
 
-    :telemetry.span([:lanx, :execute], meta1, fn ->
-      {:telemetry.span([:lanx, :execute, :worker], meta2, fn ->
-         {Process.sleep(Enum.random(0..10)), meta2}
-       end), meta1}
-    end)
+      :telemetry.span([:lanx, :execute], meta1, fn ->
+        {:telemetry.span([:lanx, :execute, :worker], meta2, fn ->
+           {Process.sleep(Enum.random(0..10)), meta2}
+         end), meta1}
+      end)
 
-    Process.sleep(1)
+      Process.sleep(1)
 
-    worker = Workers.lookup(config.workers, worker)
-    assert worker.mu != 0
+      worker = Workers.lookup(config.workers, worker)
+      assert worker.mu != 0
+    end
   end
 
   defp system_execute(time \\ Enum.random(0..10)) do
