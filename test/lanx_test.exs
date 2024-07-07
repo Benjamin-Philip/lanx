@@ -13,30 +13,6 @@ defmodule LanxTest do
       assert Process.whereis(config.test)
     end
 
-    test "starts min nodes", config do
-      assert GenServer.call(config.test, :c) == config.params[:min]
-    end
-
-    test "correctly creates jobs tables", config do
-      {jobs, _} = Lanx.tables(config.test)
-      assert :ets.tab2list(jobs) == []
-    end
-
-    test "correctly creates workers tables", config do
-      {_, workers} = Lanx.tables(config.test)
-      workers = :ets.tab2list(workers)
-
-      assert length(workers) == config.params[:min]
-
-      for {id, pid, lambda, mu, rho} <- workers do
-        assert String.length(id) == 16
-        assert Process.alive?(pid)
-        assert lambda == 0
-        assert mu == 0
-        assert rho == 0
-      end
-    end
-
     test "errors on invalid spec", config do
       assert_raise ArgumentError, fn ->
         Lanx.start_link(Keyword.put(config.params, :spec, "foo"))
@@ -104,10 +80,28 @@ defmodule LanxTest do
       assert {:error, {:shutdown, {_, _, :failed_to_start_node}}} = Lanx.start_link(params)
     end
 
-    test "starts tables", config do
-      {jobs, workers} = Lanx.tables(config.test)
-      assert Lanx.Jobs.count(jobs)
-      assert Lanx.Workers.count(workers) == config.params[:min]
+    test "starts min nodes", config do
+      assert GenServer.call(config.test, :c) == config.params[:min]
+    end
+
+    test "correctly creates jobs tables", config do
+      {jobs, _} = Lanx.tables(config.test)
+      assert :ets.tab2list(jobs) == []
+    end
+
+    test "correctly creates workers tables", config do
+      {_, workers} = Lanx.tables(config.test)
+      workers = :ets.tab2list(workers)
+
+      assert length(workers) == config.params[:min]
+
+      for {id, pid, lambda, mu, rho} <- workers do
+        assert String.length(id) == 16
+        assert Process.alive?(pid)
+        assert lambda == 0
+        assert mu == 0
+        assert rho == 0
+      end
     end
 
     test "attaches telemetry handlers", config do
