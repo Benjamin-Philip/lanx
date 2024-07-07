@@ -7,17 +7,14 @@ defmodule Lanx.Jobs do
   @doc """
   Inserts a job given a map. Inserted jobs must have an id.
   """
-  def insert(table, job = %{id: id}) do
+  def insert(table, job = %{id: _id}) do
     job =
       Map.merge(
         Map.from_keys([:worker, :system_arrival, :worker_arrival, :tau, :failed?], nil),
         job
       )
 
-    :ets.insert_new(
-      table,
-      {id, job.worker, job.system_arrival, job.worker_arrival, job.tau, job.failed?}
-    )
+    :ets.insert(table, to_tuple(job))
   end
 
   def insert(_table, job),
@@ -45,11 +42,7 @@ defmodule Lanx.Jobs do
   """
   def update(table, job = %{id: id}) do
     job = Map.merge(lookup(table, id), job)
-
-    :ets.insert(
-      table,
-      {id, job.worker, job.system_arrival, job.worker_arrival, job.tau, job.failed?}
-    )
+    :ets.insert(table, to_tuple(job))
   end
 
   def update(_table, job),
@@ -84,5 +77,9 @@ defmodule Lanx.Jobs do
       tau: tau,
       failed?: failed?
     }
+  end
+
+  def to_tuple(job) do
+    {job.id, job.worker, job.system_arrival, job.worker_arrival, job.tau, job.failed?}
   end
 end

@@ -7,17 +7,14 @@ defmodule Lanx.Workers do
   @doc """
   Inserts a worker given a map. Inserted workers must have an id.
   """
-  def insert(table, worker = %{id: id}) do
+  def insert(table, worker = %{id: _id}) do
     worker =
       Map.merge(
         %{pid: nil, lambda: 0, mu: 0, rho: 0},
         worker
       )
 
-    :ets.insert_new(
-      table,
-      {id, worker.pid, worker.lambda, worker.mu, worker.rho}
-    )
+    :ets.insert(table, to_tuple(worker))
   end
 
   def insert(_table, job),
@@ -42,11 +39,7 @@ defmodule Lanx.Workers do
   """
   def update(table, worker = %{id: id}) do
     worker = Map.merge(lookup(table, id), worker)
-
-    :ets.insert(
-      table,
-      {id, worker.pid, worker.lambda, worker.mu, worker.rho}
-    )
+    :ets.insert(table, to_tuple(worker))
   end
 
   def update(table, updates) when is_list(updates), do: Enum.each(updates, &update(table, &1))
@@ -80,5 +73,9 @@ defmodule Lanx.Workers do
       mu: mu,
       rho: rho
     }
+  end
+
+  defp to_tuple(worker) do
+    {worker.id, worker.pid, worker.lambda, worker.mu, worker.rho}
   end
 end
