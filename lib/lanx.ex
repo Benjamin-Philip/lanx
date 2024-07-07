@@ -228,7 +228,7 @@ defmodule Lanx do
     Process.send_after(self(), :assess_metrics, state.assess_inter)
 
     jobs = Jobs.dump(state.jobs)
-    metrics = Statistics.assess_system(jobs)
+    metrics = Statistics.assess_system(jobs, length(state.pids))
 
     updates = Statistics.assess_workers(Workers.dump(state.workers), jobs)
     Workers.update(state.workers, updates)

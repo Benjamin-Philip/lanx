@@ -194,6 +194,7 @@ defmodule LanxTest do
       assert metrics.lambda == 1
       assert metrics.mu == 0.1
       assert metrics.rho == 10
+      assert metrics.c == config.params[:k]
 
       worker = Workers.lookup(workers, worker)
 

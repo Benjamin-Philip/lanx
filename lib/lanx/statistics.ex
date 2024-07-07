@@ -26,7 +26,7 @@ defmodule Lanx.Statistics do
   @doc """
   Assesses the system given jobs.
   """
-  def assess_system(jobs), do: assess(jobs, :system_arrival)
+  def assess_system(jobs, c), do: Map.put(assess(jobs, :system_arrival), :c, c)
 
   defp assess([], _), do: %{lambda: 0, mu: 0, rho: 0}
 
