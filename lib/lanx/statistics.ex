@@ -19,17 +19,18 @@ defmodule Lanx.Statistics do
   def assess_worker([]), do: nil
 
   def assess_worker(jobs) do
-    jobs = Enum.map(jobs, fn job -> Map.put(job, :system_arrival, job.worker_arrival) end)
     [%{worker: id} | _] = jobs
-    Map.put(assess_system(jobs), :id, id)
+    Map.put(assess(jobs, :worker_arrival), :id, id)
   end
 
   @doc """
   Assesses the system given jobs.
   """
-  def assess_system([]), do: %{lambda: 0, mu: 0, rho: 0}
+  def assess_system(jobs), do: assess(jobs, :system_arrival)
 
-  def assess_system(jobs) do
+  defp assess([], _), do: %{lambda: 0, mu: 0, rho: 0}
+
+  defp assess(jobs, key) do
     n = length(jobs)
 
     # Let θ be the time between arrivals
@@ -40,7 +41,7 @@ defmodule Lanx.Statistics do
     #
     # ∴ λ = n/(a_n + a_1)
 
-    arrivals = jobs |> Enum.map(fn job -> job.system_arrival end) |> Enum.sort()
+    arrivals = jobs |> Enum.map(fn job -> Map.fetch!(job, key) end) |> Enum.sort()
 
     sigma_theta =
       case Enum.at(arrivals, -1) - Enum.at(arrivals, 0) do
