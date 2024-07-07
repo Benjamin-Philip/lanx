@@ -22,7 +22,7 @@ defmodule Lanx do
     * `:pool` - The parameters to start the FLAME pool. Overwritten and passed
       through `FLAME.Pool.child_spec/1`.
 
-    * `:k` - The number of servers.
+    * `:min` - The minimun number of workers at any instant.
 
     * `:assess_inter` - The interval between workers assessments in
       milliseconds.
@@ -32,11 +32,19 @@ defmodule Lanx do
 
   """
   def start_link(opts) do
-    opts = Keyword.validate!(opts, [:name, :spec, :pool, k: 2, assess_inter: 1000, expiry: 5000])
+    opts =
+      Keyword.validate!(opts, [:name, :spec, :pool, min: 0, assess_inter: 1000, expiry: 5000])
 
-    validate_natural(opts[:k], "k must be a natural number")
-    validate_natural(opts[:assess_inter], "assess_inter must be a natural number in milliseconds")
-    expiry = validate_natural(opts[:expiry], "expiry must be a natural number in milliseconds")
+    validate_numerical(opts[:min], -1, "k must be a natural number")
+
+    validate_numerical(
+      opts[:assess_inter],
+      0,
+      "assess_inter must be a natural number in milliseconds"
+    )
+
+    expiry =
+      validate_numerical(opts[:expiry], 0, "expiry must be a natural number in milliseconds")
 
     pool = Keyword.fetch!(opts, :pool)
     name = Keyword.fetch!(opts, :name)
@@ -65,9 +73,9 @@ defmodule Lanx do
     Supervisor.start_link(children, strategy: :one_for_all, max_restarts: 0, name: supervisor)
   end
 
-  defp validate_natural(val, msg) do
+  defp validate_numerical(val, gt, msg) do
     case val do
-      val when is_integer(val) and val > 0 ->
+      val when is_integer(val) and val > gt ->
         val
 
       val ->
@@ -111,7 +119,7 @@ defmodule Lanx do
   @impl true
   def init(opts) do
     pids =
-      Enum.flat_map(1..opts[:k], fn _ ->
+      Enum.flat_map(1..opts[:min], fn _ ->
         result =
           FLAME.place_child(
             opts[:pool],
@@ -175,9 +183,9 @@ defmodule Lanx do
          jobs: jobs,
          workers: workers,
          pool: opts[:pool],
-         k: opts[:k],
+         min: opts[:min],
          pids: pids,
-         metrics: %{lambda: 0, mu: 0, rho: 0},
+         metrics: %{lambda: 0, mu: 0, rho: 0, c: opts[:min]},
          assess_inter: opts[:assess_inter],
          handler: handler
        }}
@@ -190,7 +198,7 @@ defmodule Lanx do
   end
 
   @impl true
-  def handle_call(:k, _, state) do
+  def handle_call(:c, _, state) do
     {:reply, length(state.pids), state}
   end
 

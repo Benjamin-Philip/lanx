@@ -13,8 +13,8 @@ defmodule LanxTest do
       assert Process.whereis(config.test)
     end
 
-    test "starts k nodes", config do
-      assert GenServer.call(config.test, :k) == config.params[:k]
+    test "starts min nodes", config do
+      assert GenServer.call(config.test, :c) == config.params[:min]
     end
 
     test "correctly creates jobs tables", config do
@@ -26,7 +26,7 @@ defmodule LanxTest do
       {_, workers} = Lanx.tables(config.test)
       workers = :ets.tab2list(workers)
 
-      assert length(workers) == config.params[:k]
+      assert length(workers) == config.params[:min]
 
       for {id, pid, lambda, mu, rho} <- workers do
         assert String.length(id) == 16
@@ -49,19 +49,29 @@ defmodule LanxTest do
       end
     end
 
-    test "errors on invalid k", config do
+    test "errors on invalid min", config do
       assert_raise ArgumentError, "k must be a natural number, got: \"bar\"", fn ->
-        Lanx.start_link(Keyword.put(config.params, :k, "bar"))
+        Lanx.start_link(Keyword.put(config.params, :min, "bar"))
       end
 
       assert_raise ArgumentError, "k must be a natural number, got: -1", fn ->
-        Lanx.start_link(Keyword.put(config.params, :k, -1))
-      end
-
-      assert_raise ArgumentError, "k must be a natural number, got: 0", fn ->
-        Lanx.start_link(Keyword.put(config.params, :k, 0))
+        Lanx.start_link(Keyword.put(config.params, :min, -1))
       end
     end
+
+    #     test "errors on invalid max", config do
+    #   assert_raise ArgumentError, "k must be a natural number, got: \"bar\"", fn ->
+    #     Lanx.start_link(Keyword.put(config.params, :k, "bar"))
+    #   end
+
+    #   assert_raise ArgumentError, "k must be a natural number, got: -1", fn ->
+    #     Lanx.start_link(Keyword.put(config.params, :k, -1))
+    #   end
+
+    #   assert_raise ArgumentError, "k must be a natural number, got: 0", fn ->
+    #     Lanx.start_link(Keyword.put(config.params, :k, 0))
+    #   end
+    # end
 
     test "errors on invalid expiry", config do
       assert_raise ArgumentError,
@@ -97,7 +107,7 @@ defmodule LanxTest do
     test "starts tables", config do
       {jobs, workers} = Lanx.tables(config.test)
       assert Lanx.Jobs.count(jobs)
-      assert Lanx.Workers.count(workers) == config.params[:k]
+      assert Lanx.Workers.count(workers) == config.params[:min]
     end
 
     test "attaches telemetry handlers", config do
@@ -161,7 +171,12 @@ defmodule LanxTest do
   end
 
   test "metrics/1", config do
-    assert Lanx.metrics(config.test) == %{lambda: 0, mu: 0, rho: 0}
+    assert Lanx.metrics(config.test) == %{
+             lambda: 0,
+             mu: 0,
+             rho: 0,
+             c: config.params[:min]
+           }
   end
 
   describe "assesses" do
@@ -194,7 +209,7 @@ defmodule LanxTest do
       assert metrics.lambda == 1
       assert metrics.mu == 0.1
       assert metrics.rho == 10
-      assert metrics.c == config.params[:k]
+      assert metrics.c == GenServer.call(config.test, :c)
 
       worker = Workers.lookup(workers, worker)
 
