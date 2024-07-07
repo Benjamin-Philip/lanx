@@ -99,6 +99,13 @@ defmodule LanxTest do
       assert Lanx.Jobs.count(jobs)
       assert Lanx.Workers.count(workers) == config.params[:k]
     end
+
+    test "attaches telemetry handlers", config do
+      id = :"#{config.test}_handler"
+
+      assert [%{id: ^id}] =
+               :telemetry.list_handlers([:lanx, :execute, :start])
+    end
   end
 
   test "terminate/2 detaches telemetry handlers", config do
