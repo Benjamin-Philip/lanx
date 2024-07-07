@@ -36,7 +36,7 @@ defmodule Lanx do
 
     validate_natural(opts[:k], "k must be a natural number")
     validate_natural(opts[:assess_inter], "assess_inter must be a natural number in milliseconds")
-    validate_natural(opts[:expiry], "expiry must be a natural number in milliseconds")
+    expiry = validate_natural(opts[:expiry], "expiry must be a natural number in milliseconds")
 
     pool = Keyword.fetch!(opts, :pool)
     name = Keyword.fetch!(opts, :name)
