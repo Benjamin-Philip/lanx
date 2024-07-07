@@ -139,8 +139,7 @@ defmodule Lanx do
         :ets.new(:"#{opts[:name]}_workers", [
           :set,
           :public,
-          {:read_concurrency, true},
-          {:write_concurrency, true}
+          {:read_concurrency, true}
         ])
 
       Enum.map(pids, fn pid ->
