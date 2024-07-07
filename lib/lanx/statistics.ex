@@ -13,7 +13,7 @@ defmodule Lanx.Statistics do
   end
 
   @doc """
-  Assesses a worker given jobs. Assumes all jobs belongs to the same worker as
+  Assesses a worker given jobs. Assumes all jobs belong to the same worker as
   the first without checking.
   """
   def assess_worker([]), do: nil
