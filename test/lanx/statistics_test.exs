@@ -17,7 +17,7 @@ defmodule Lanx.StatisticsTest do
 
     arrivals =
       Enum.map(0..n, fn i ->
-        System.convert_time_unit(:erlang.system_time(), :native, :millisecond) + i
+        System.convert_time_unit(:erlang.system_time(), :native, :microsecond) + i
       end)
 
     taus = Enum.map(0..n, fn i -> 10 + 2 * i end)
@@ -47,7 +47,7 @@ defmodule Lanx.StatisticsTest do
 
   test "assess_worker/1" do
     wid = Helpers.worker_id()
-    time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+    time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
 
     jobs = [
       %{id: Helpers.job_id(), worker: wid, worker_arrival: time, tau: 10},
@@ -64,7 +64,7 @@ defmodule Lanx.StatisticsTest do
   end
 
   test "assess_system/1" do
-    time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+    time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
 
     jobs = [
       %{id: Helpers.job_id(), system_arrival: time, tau: 10},

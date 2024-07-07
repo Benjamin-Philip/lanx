@@ -46,14 +46,15 @@ defmodule Lanx do
             "assess_inter must be a natural number in milliseconds, got: #{inspect(assess)}"
     end
 
-    case Keyword.fetch!(opts, :expiry) do
-      expiry when is_integer(expiry) and expiry > 0 ->
-        expiry
+    expiry =
+      case Keyword.fetch!(opts, :expiry) do
+        expiry when is_integer(expiry) and expiry > 0 ->
+          System.convert_time_unit(expiry, :millisecond, :microsecond)
 
-      expiry ->
-        raise ArgumentError,
-          message: "expiry must be a natural number in milliseconds, got: #{inspect(expiry)}"
-    end
+        expiry ->
+          raise ArgumentError,
+            message: "expiry must be a natural number in milliseconds, got: #{inspect(expiry)}"
+      end
 
     pool = Keyword.fetch!(opts, :pool)
     name = Keyword.fetch!(opts, :name)
@@ -69,7 +70,11 @@ defmodule Lanx do
 
     spec = Supervisor.child_spec(Keyword.fetch!(opts, :spec), id: :template)
 
-    arg = opts |> Keyword.put(:pool, Keyword.fetch!(pool, :name)) |> Keyword.put(:spec, spec)
+    arg =
+      opts
+      |> Keyword.put(:pool, Keyword.fetch!(pool, :name))
+      |> Keyword.put(:spec, spec)
+      |> Keyword.put(:expiry, expiry)
 
     children = [
       pool_spec,

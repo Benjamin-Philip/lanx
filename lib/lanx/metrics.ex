@@ -12,7 +12,7 @@ defmodule Lanx.Metrics do
         %{id: id},
         %{jobs: jobs}
       ) do
-    time = System.convert_time_unit(native_time, :native, :millisecond)
+    time = System.convert_time_unit(native_time, :native, :microsecond)
 
     Jobs.insert(jobs, %{id: id, system_arrival: time})
   end
@@ -23,7 +23,7 @@ defmodule Lanx.Metrics do
         %{id: id},
         %{lanx: lanx, jobs: jobs, expiry: expiry}
       ) do
-    duration = System.convert_time_unit(native_duration, :native, :millisecond)
+    duration = System.convert_time_unit(native_duration, :native, :microsecond)
     Jobs.update(jobs, %{id: id, tau: duration, failed?: false})
 
     Process.send_after(lanx, {:delete_job, id}, expiry)
@@ -35,7 +35,7 @@ defmodule Lanx.Metrics do
         %{id: id},
         %{lanx: lanx, jobs: jobs, expiry: expiry}
       ) do
-    duration = System.convert_time_unit(native_duration, :native, :millisecond)
+    duration = System.convert_time_unit(native_duration, :native, :microsecond)
 
     Jobs.update(jobs, %{id: id, tau: duration, failed?: true})
 
@@ -48,7 +48,7 @@ defmodule Lanx.Metrics do
         %{id: id, worker: worker},
         %{jobs: jobs}
       ) do
-    time = System.convert_time_unit(native_time, :native, :millisecond)
+    time = System.convert_time_unit(native_time, :native, :microsecond)
 
     Jobs.update(jobs, %{id: id, worker: worker, worker_arrival: time})
   end

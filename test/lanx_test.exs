@@ -129,6 +129,7 @@ defmodule LanxTest do
 
       assert job.worker
       assert job.worker_arrival
+      assert job.tau != 0
     end
 
     test "assesses worker", config do
@@ -160,7 +161,7 @@ defmodule LanxTest do
     test "metrics on info", config do
       {jobs, workers} = Lanx.tables(config.test)
       worker = :ets.first(workers)
-      time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
 
       Jobs.insert(jobs, %{
         id: Helpers.job_id(),
@@ -197,7 +198,7 @@ defmodule LanxTest do
     test "workers on info", config do
       {jobs, workers} = Lanx.tables(config.test)
       worker = :ets.first(workers)
-      time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
 
       Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time, tau: 10})
 
@@ -220,7 +221,7 @@ defmodule LanxTest do
       Process.sleep(1)
       assert Process.alive?(config.lanx)
 
-      time = System.convert_time_unit(:erlang.system_time(), :native, :millisecond)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
 
       Jobs.insert(jobs, %{id: Helpers.job_id(), worker: worker, worker_arrival: time, tau: 10})
 
