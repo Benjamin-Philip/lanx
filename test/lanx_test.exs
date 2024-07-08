@@ -26,28 +26,28 @@ defmodule LanxTest do
     end
 
     test "errors on invalid min", config do
-      assert_raise ArgumentError, "k must be a natural number, got: \"bar\"", fn ->
+      assert_raise ArgumentError, "min must be a whole number, got: \"bar\"", fn ->
         Lanx.start_link(Keyword.put(config.params, :min, "bar"))
       end
 
-      assert_raise ArgumentError, "k must be a natural number, got: -1", fn ->
+      assert_raise ArgumentError, "min must be a whole number, got: -1", fn ->
         Lanx.start_link(Keyword.put(config.params, :min, -1))
       end
     end
 
-    #     test "errors on invalid max", config do
-    #   assert_raise ArgumentError, "k must be a natural number, got: \"bar\"", fn ->
-    #     Lanx.start_link(Keyword.put(config.params, :k, "bar"))
-    #   end
+    test "errors on invalid max", config do
+      assert_raise ArgumentError, "max must be a natural number or :infinity, got: \"bar\"", fn ->
+        Lanx.start_link(Keyword.put(config.params, :max, "bar"))
+      end
 
-    #   assert_raise ArgumentError, "k must be a natural number, got: -1", fn ->
-    #     Lanx.start_link(Keyword.put(config.params, :k, -1))
-    #   end
+      assert_raise ArgumentError, "max must be a natural number or :infinity, got: -1", fn ->
+        Lanx.start_link(Keyword.put(config.params, :max, -1))
+      end
 
-    #   assert_raise ArgumentError, "k must be a natural number, got: 0", fn ->
-    #     Lanx.start_link(Keyword.put(config.params, :k, 0))
-    #   end
-    # end
+      assert_raise ArgumentError, "max must be a natural number or :infinity, got: 0", fn ->
+        Lanx.start_link(Keyword.put(config.params, :max, 0))
+      end
+    end
 
     test "errors on invalid expiry", config do
       assert_raise ArgumentError,

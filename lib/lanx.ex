@@ -22,7 +22,10 @@ defmodule Lanx do
     * `:pool` - The parameters to start the FLAME pool. Overwritten and passed
       through `FLAME.Pool.child_spec/1`.
 
-    * `:min` - The minimun number of workers at any instant.
+    * `:min` - The minimun number of workers at any instant. Must be a whole number.
+
+    * `:max` - The maximum number of workers at any instant. Either a natural
+      number or `:infinity`
 
     * `:assess_inter` - The interval between workers assessments in
       milliseconds.
@@ -32,35 +35,16 @@ defmodule Lanx do
 
   """
   def start_link(opts) do
-    opts =
-      Keyword.validate!(opts, [:name, :spec, :pool, min: 0, assess_inter: 1000, expiry: 5000])
+    opts = validate_opts(opts)
+    name = opts[:name]
 
-    validate_numerical(opts[:min], -1, "k must be a natural number")
-
-    validate_numerical(
-      opts[:assess_inter],
-      0,
-      "assess_inter must be a natural number in milliseconds"
-    )
-
-    expiry =
-      validate_numerical(opts[:expiry], 0, "expiry must be a natural number in milliseconds")
-
-    pool = Keyword.fetch!(opts, :pool)
-    name = Keyword.fetch!(opts, :name)
+    {pool_name, pool_spec} = configure_pool(opts)
 
     supervisor = Module.concat(name, "Supervisor")
 
-    pool_spec =
-      try do
-        FLAME.Pool.child_spec(pool)
-      rescue
-        _ -> raise ArgumentError, "invalid pool params, got: #{inspect(pool)}"
-      end
+    spec = Supervisor.child_spec(opts[:spec], id: :template)
 
-    spec = Supervisor.child_spec(Keyword.fetch!(opts, :spec), id: :template)
-
-    arg = Keyword.merge(opts, pool: Keyword.fetch!(pool, :name), spec: spec, expiry: expiry)
+    arg = Keyword.merge(opts, pool: pool_name, spec: spec, expiry: opts[:expiry])
 
     children = [
       pool_spec,
@@ -73,6 +57,47 @@ defmodule Lanx do
     Supervisor.start_link(children, strategy: :one_for_all, max_restarts: 0, name: supervisor)
   end
 
+  defp validate_opts(opts) do
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :spec,
+        :pool,
+        min: 0,
+        max: :infinity,
+        assess_inter: 1000,
+        expiry: 5000
+      ])
+
+    Keyword.fetch!(opts, :name)
+    Keyword.fetch!(opts, :spec)
+    Keyword.fetch!(opts, :pool)
+
+    validate_numerical(opts[:min], -1, "min must be a whole number")
+
+    case Keyword.fetch!(opts, :max) do
+      val when is_integer(val) and val > 0 ->
+        val
+
+      :infinity ->
+        :infinity
+
+      val ->
+        raise ArgumentError,
+          message: "max must be a natural number or :infinity, got: #{inspect(val)}"
+    end
+
+    validate_numerical(
+      opts[:assess_inter],
+      0,
+      "assess_inter must be a natural number in milliseconds"
+    )
+
+    validate_numerical(opts[:expiry], 0, "expiry must be a natural number in milliseconds")
+
+    opts
+  end
+
   defp validate_numerical(val, gt, msg) do
     case val do
       val when is_integer(val) and val > gt ->
@@ -81,6 +106,21 @@ defmodule Lanx do
       val ->
         raise ArgumentError, message: msg <> ", got: #{inspect(val)}"
     end
+  end
+
+  defp configure_pool(opts) do
+    pool = opts[:pool]
+
+    pool_spec =
+      try do
+        FLAME.Pool.child_spec(
+          Keyword.merge(pool, min: opts[:min], max: opts[:max], max_concurrency: 1)
+        )
+      rescue
+        _ -> raise ArgumentError, "invalid pool params, got: #{inspect(pool)}"
+      end
+
+    {Keyword.fetch!(pool, :name), pool_spec}
   end
 
   @doc """
@@ -184,6 +224,7 @@ defmodule Lanx do
          workers: workers,
          pool: opts[:pool],
          min: opts[:min],
+         max: opts[:max],
          pids: pids,
          metrics: %{lambda: 0, mu: 0, rho: 0, c: opts[:min]},
          assess_inter: opts[:assess_inter],
