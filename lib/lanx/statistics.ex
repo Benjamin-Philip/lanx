@@ -63,39 +63,42 @@ defmodule Lanx.Statistics do
   """
   def assess_system(jobs, c), do: Map.put(assess(jobs, :system_arrival), :c, c)
 
-  defp assess([], _), do: %{lambda: 0, mu: 0, rho: 0}
-
   defp assess(jobs, key) do
-    jobs = Enum.filter(jobs, fn job -> job.tau end)
-    n = length(jobs)
+    case Enum.filter(jobs, fn job -> job.tau end) do
+      [] ->
+        %{lambda: 0, mu: 0, rho: 0}
 
-    # Let θ be the time between arrivals
-    #
-    # λ = n/Σθ
-    # θ_n = a_n - a_(n - 1), where a_0 = a_1
-    # ∴ Σθ = a_n - a_0 = a_n + a_1
-    #
-    # ∴ λ = n/(a_n + a_1)
+      jobs ->
+        n = length(jobs)
 
-    arrivals = jobs |> Enum.map(fn job -> Map.fetch!(job, key) end) |> Enum.sort()
+        # Let θ be the time between arrivals
+        #
+        # λ = n/Σθ
+        # θ_n = a_n - a_(n - 1), where a_0 = a_1
+        # ∴ Σθ = a_n - a_0 = a_n + a_1
+        #
+        # ∴ λ = n/(a_n + a_1)
 
-    sigma_theta =
-      case Enum.at(arrivals, -1) - Enum.at(arrivals, 0) do
-        0 -> 1
-        x -> x
-      end
+        arrivals = jobs |> Enum.map(fn job -> Map.fetch!(job, key) end) |> Enum.sort()
 
-    lambda = n / sigma_theta
+        sigma_theta =
+          case Enum.at(arrivals, -1) - Enum.at(arrivals, 0) do
+            0 -> 1
+            x -> x
+          end
 
-    sigma_tau =
-      case jobs |> Enum.map(fn job -> job.tau end) |> Enum.sum() do
-        0 -> 1
-        x -> x
-      end
+        lambda = n / sigma_theta
 
-    mu = n / sigma_tau
+        sigma_tau =
+          case jobs |> Enum.map(fn job -> job.tau end) |> Enum.sum() do
+            0 -> 1
+            x -> x
+          end
 
-    rho = sigma_tau / sigma_theta
-    %{lambda: lambda, mu: mu, rho: rho}
+        mu = n / sigma_tau
+
+        rho = sigma_tau / sigma_theta
+        %{lambda: lambda, mu: mu, rho: rho}
+    end
   end
 end
