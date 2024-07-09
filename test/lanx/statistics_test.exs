@@ -8,7 +8,7 @@ defmodule Lanx.StatisticsTest do
       assert Statistics.delta_c(%{rho: 7, c: 10}, {0, 10}, {0.5, 0.8}) == 0
     end
 
-    test "rounds" do
+    test "rounds results" do
       # Δc = 2.1212
       assert Statistics.delta_c(%{rho: 8, c: 10}, {5, 20}, {0.4, 0.66}) == 2
       # Δc = 0.66
@@ -83,6 +83,8 @@ defmodule Lanx.StatisticsTest do
     jobs = [
       %{id: Helpers.job_id(), worker: wid, worker_arrival: time, tau: 10},
       %{id: Helpers.job_id(), worker: wid, worker_arrival: time + 1, tau: 12},
+      # Doesn't count on going jobs
+      %{id: Helpers.job_id(), system_arrival: time + 1, tau: nil},
       %{id: Helpers.job_id(), worker: wid, worker_arrival: time, tau: 14}
     ]
 
@@ -100,6 +102,8 @@ defmodule Lanx.StatisticsTest do
     jobs = [
       %{id: Helpers.job_id(), system_arrival: time, tau: 10},
       %{id: Helpers.job_id(), system_arrival: time + 1, tau: 12},
+      # Doesn't count on going jobs
+      %{id: Helpers.job_id(), system_arrival: time + 1, tau: nil},
       %{id: Helpers.job_id(), system_arrival: time, tau: 14}
     ]
 

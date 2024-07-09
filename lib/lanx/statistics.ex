@@ -66,6 +66,7 @@ defmodule Lanx.Statistics do
   defp assess([], _), do: %{lambda: 0, mu: 0, rho: 0}
 
   defp assess(jobs, key) do
+    jobs = Enum.filter(jobs, fn job -> job.tau end)
     n = length(jobs)
 
     # Let θ be the time between arrivals
