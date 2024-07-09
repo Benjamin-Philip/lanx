@@ -3,6 +3,35 @@ defmodule Lanx.StatisticsTest do
 
   alias Lanx.{Statistics, Helpers}
 
+  describe "delta_c/3" do
+    test "returns zero if rho in range" do
+      assert Statistics.delta_c(%{rho: 7, c: 10}, {0, 10}, {0.5, 0.8}) == 0
+    end
+
+    test "rounds" do
+      # Δc = 2.1212
+      assert Statistics.delta_c(%{rho: 8, c: 10}, {5, 20}, {0.4, 0.66}) == 2
+      # Δc = 0.66
+      assert Statistics.delta_c(%{rho: 8, c: 10}, {5, 20}, {0.4, 0.75}) == 1
+      # Δc = -5.0
+      assert Statistics.delta_c(%{rho: 2.5, c: 10}, {5, 20}, {0.5, 0.75}) == -5
+      # Δc = -1.66
+      assert Statistics.delta_c(%{rho: 2.5, c: 10}, {5, 20}, {0.3, 0.75}) == -2
+    end
+
+    test "corrects if c prime is out of range" do
+      # crosses maximum; c′ = 28
+      assert Statistics.delta_c(%{rho: 7, c: 10}, {0, 20}, {0.1, 0.25}) == 10
+
+      # crossess minimum: c′ = 2
+      assert Statistics.delta_c(%{rho: 1.6, c: 10}, {5, 10}, {0.8, 0.9}) == -5
+    end
+
+    test "handles infinite c_max" do
+      assert Statistics.delta_c(%{rho: 7, c: 10}, {0, :infinity}, {0.1, 0.25}) == 18
+    end
+  end
+
   test "assess_workers/2" do
     wid1 = Helpers.worker_id()
     worker1 = %{id: wid1}

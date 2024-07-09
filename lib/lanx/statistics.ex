@@ -2,6 +2,41 @@ defmodule Lanx.Statistics do
   @moduledoc false
 
   @doc """
+  Calculates the change in c in order to acheive a certain average utilisation,
+  given system metrics, c min and c max tuple, and a rho min and rho max tuple.
+  """
+  def delta_c(metrics, {c_min, c_max}, {rho_min, rho_max}) do
+    rho_s = metrics.rho
+    c = metrics.c
+
+    rho_prime =
+      case {rho_s / c, rho_min, rho_max} do
+        {rho, min, _max} when rho < min -> min
+        {rho, min, max} when min <= rho and rho <= max -> rho
+        {rho, _min, max} when rho >= max -> max
+      end
+
+    c_prime = round(rho_s / rho_prime)
+
+    case c_prime do
+      c_prime when c_prime > c ->
+        case c_max do
+          :infinity ->
+            c_prime - c
+
+          max ->
+            min(c_prime, max) - c
+        end
+
+      c_prime when c_prime == c ->
+        0
+
+      c_prime when c_prime < c ->
+        max(c_prime, c_min) - c
+    end
+  end
+
+  @doc """
   Assess all workers given workers and jobs
   """
   def assess_workers(workers, jobs) do
