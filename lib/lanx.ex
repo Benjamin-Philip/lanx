@@ -25,7 +25,7 @@ defmodule Lanx do
     * `:min` - The minimun number of workers at any instant. Must be a whole number.
 
     * `:max` - The maximum number of workers at any instant. Either a natural
-      number or `:infinity`
+      number or `:infinity`. Greater than or equal to`:min`.
 
     * `:assess_inter` - The interval between workers assessments in
       milliseconds.
@@ -73,11 +73,15 @@ defmodule Lanx do
     Keyword.fetch!(opts, :spec)
     Keyword.fetch!(opts, :pool)
 
-    validate_numerical(opts[:min], -1, "min must be a whole number")
+    min = validate_numerical(opts[:min], -1, "min must be a whole number")
 
     case Keyword.fetch!(opts, :max) do
-      val when is_integer(val) and val > 0 ->
+      val when is_integer(val) and val >= min and val > 0 ->
         val
+
+      val when is_integer(val) and val > 0 ->
+        raise ArgumentError,
+          message: "max must be greater than or equal to the min of #{min}, got: #{val}"
 
       :infinity ->
         :infinity

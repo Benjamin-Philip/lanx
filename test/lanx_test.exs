@@ -47,6 +47,12 @@ defmodule LanxTest do
       assert_raise ArgumentError, "max must be a natural number or :infinity, got: 0", fn ->
         Lanx.start_link(Keyword.put(config.params, :max, 0))
       end
+
+      assert_raise ArgumentError,
+                   "max must be greater than or equal to the min of #{config.params[:min]}, got: 2",
+                   fn ->
+                     Lanx.start_link(Keyword.put(config.params, :max, 2))
+                   end
     end
 
     test "errors on invalid expiry", config do
