@@ -27,6 +27,14 @@ defmodule Lanx do
     * `:max` - The maximum number of workers at any instant. Either a natural
       number or `:infinity`. Greater than or equal to`:min`.
 
+    * `:rho_min` - The minimun average worker utilisation at any instant. Must be
+      (non inclusively) between 0 and 1.
+
+
+    * `:rho_max` - The minimun average worker utilisation at any instant. Must be
+      (non inclusively) between 0 and 1. Greater than or equal to `:rho_min`.
+
+
     * `:assess_inter` - The interval between workers assessments in
       milliseconds.
 
@@ -65,6 +73,8 @@ defmodule Lanx do
         :pool,
         min: 0,
         max: :infinity,
+        rho_min: 0.5,
+        rho_max: 0.75,
         assess_inter: 1000,
         expiry: 5000
       ])
@@ -89,6 +99,30 @@ defmodule Lanx do
       val ->
         raise ArgumentError,
           message: "max must be a natural number or :infinity, got: #{inspect(val)}"
+    end
+
+    rho_min =
+      case Keyword.fetch!(opts, :rho_min) do
+        val when is_float(val) and val < 1 and val > 0 ->
+          val
+
+        val ->
+          raise ArgumentError,
+            message: "rho_min must be a float between 0 and 1, got: #{inspect(val)}"
+      end
+
+    case Keyword.fetch!(opts, :rho_max) do
+      val when is_float(val) and val < 1 and val >= rho_min ->
+        val
+
+      val when is_float(val) and val < 1 and val > 0 ->
+        raise ArgumentError,
+          message:
+            "rho_max must be greater than or equal to the rho_min of #{rho_min}, got: #{val}"
+
+      val ->
+        raise ArgumentError,
+          message: "rho_max must be a float between 0 and 1, got: #{inspect(val)}"
     end
 
     validate_numerical(
@@ -229,6 +263,8 @@ defmodule Lanx do
          pool: opts[:pool],
          min: opts[:min],
          max: opts[:max],
+         rho_min: opts[:rho_min],
+         rho_max: opts[:rho_max],
          pids: pids,
          metrics: %{lambda: 0, mu: 0, rho: 0, c: opts[:min]},
          assess_inter: opts[:assess_inter],

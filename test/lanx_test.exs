@@ -55,6 +55,32 @@ defmodule LanxTest do
                    end
     end
 
+    test "errors on invalid rho_min", config do
+      assert_raise ArgumentError, "rho_min must be a float between 0 and 1, got: \"bar\"", fn ->
+        Lanx.start_link(Keyword.put(config.params, :rho_min, "bar"))
+      end
+
+      assert_raise ArgumentError, "rho_min must be a float between 0 and 1, got: -1", fn ->
+        Lanx.start_link(Keyword.put(config.params, :rho_min, -1))
+      end
+    end
+
+    test "errors on invalid rho_max", config do
+      assert_raise ArgumentError, "rho_max must be a float between 0 and 1, got: \"bar\"", fn ->
+        Lanx.start_link(Keyword.put(config.params, :rho_max, "bar"))
+      end
+
+      assert_raise ArgumentError, "rho_max must be a float between 0 and 1, got: -1", fn ->
+        Lanx.start_link(Keyword.put(config.params, :rho_max, -1))
+      end
+
+      assert_raise ArgumentError,
+                   "rho_max must be greater than or equal to the rho_min of 0.5, got: 0.1",
+                   fn ->
+                     Lanx.start_link(Keyword.put(config.params, :rho_max, 0.1))
+                   end
+    end
+
     test "errors on invalid expiry", config do
       assert_raise ArgumentError,
                    "expiry must be a natural number in milliseconds, got: \"bar\"",
