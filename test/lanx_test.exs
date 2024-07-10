@@ -113,7 +113,8 @@ defmodule LanxTest do
     end
 
     test "starts min nodes", config do
-      assert GenServer.call(config.test, :c) == config.params[:min]
+      {_, workers} = Lanx.tables(config.test)
+      assert Workers.count(workers) == config.params[:min]
     end
 
     test "correctly creates jobs tables", config do
@@ -235,7 +236,7 @@ defmodule LanxTest do
       assert metrics.lambda == 1
       assert metrics.mu == 0.1
       assert metrics.rho == 10
-      assert metrics.c == GenServer.call(config.test, :c)
+      assert metrics.c == Workers.count(workers)
 
       worker = Workers.lookup(workers, worker)
 

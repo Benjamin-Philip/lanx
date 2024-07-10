@@ -265,7 +265,6 @@ defmodule Lanx do
          max: opts[:max],
          rho_min: opts[:rho_min],
          rho_max: opts[:rho_max],
-         pids: pids,
          metrics: %{lambda: 0, mu: 0, rho: 0, c: opts[:min]},
          assess_inter: opts[:assess_inter],
          handler: handler
@@ -279,11 +278,6 @@ defmodule Lanx do
   end
 
   @impl true
-  def handle_call(:c, _, state) do
-    {:reply, length(state.pids), state}
-  end
-
-  @impl true
   def handle_call(:tables, _, state) do
     {:reply, {state.jobs, state.workers}, state}
   end
@@ -291,11 +285,6 @@ defmodule Lanx do
   @impl true
   def handle_call(:metrics, _, state) do
     {:reply, state.metrics, state}
-  end
-
-  @impl true
-  def handle_call(:pid, _, state) do
-    {:reply, Enum.random(state.pids), state}
   end
 
   @impl true
@@ -317,7 +306,7 @@ defmodule Lanx do
     Process.send_after(self(), :assess_metrics, state.assess_inter)
 
     jobs = Jobs.dump(state.jobs)
-    metrics = Statistics.assess_system(jobs, length(state.pids))
+    metrics = Statistics.assess_system(jobs, Workers.count(state.workers))
 
     updates = Statistics.assess_workers(Workers.dump(state.workers), jobs)
     Workers.update(state.workers, updates)
