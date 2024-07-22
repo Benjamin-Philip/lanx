@@ -23,6 +23,16 @@ defmodule LanxTest do
       assert Process.whereis(config.test)
     end
 
+    test "starts jobs table", config do
+      {jobs, _} = Lanx.tables(config.test)
+      assert :ets.tab2list(jobs) == []
+    end
+
+    test "starts workers table", config do
+      {_, workers} = Lanx.tables(config.test)
+      assert _workers = :ets.tab2list(workers)
+    end
+
     test "errors on invalid spec", config do
       assert_raise ArgumentError, fn ->
         Lanx.start_link(Keyword.put(config.params, :spec, "foo"))
