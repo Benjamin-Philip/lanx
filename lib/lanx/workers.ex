@@ -21,7 +21,7 @@ defmodule Lanx.Workers do
     do: raise(ArgumentError, "Workers must have an id, got: #{inspect(job)}")
 
   @doc """
-  Looks up a worker givan a table and id
+  Looks up a worker given a table and id
   """
   def lookup(table, id) do
     table |> :ets.lookup(id) |> hd |> to_map()
@@ -32,6 +32,13 @@ defmodule Lanx.Workers do
   """
   def least_utilized(table) do
     table |> dump() |> Enum.min_by(fn worker -> worker.rho end)
+  end
+
+  @doc """
+  Returns the `c` least utilized workers, given a table
+  """
+  def least_utilized(table, c) when is_integer(c) and c >= 1 do
+    table |> dump() |> Enum.sort_by(fn worker -> worker.rho end) |> Enum.take(c)
   end
 
   @doc """

@@ -22,7 +22,18 @@ defmodule Lanx do
     * `:pool` - The parameters to start the FLAME pool. Overwritten and passed
       through `FLAME.Pool.child_spec/1`.
 
-    * `:k` - The number of servers.
+    * `:min` - The minimun number of workers at any instant. Must be a whole number.
+
+    * `:max` - The maximum number of workers at any instant. Either a natural
+      number or `:infinity`. Greater than or equal to`:min`.
+
+    * `:rho_min` - The minimun average worker utilisation at any instant. Must be
+      (non inclusively) between 0 and 1.
+
+
+    * `:rho_max` - The minimun average worker utilisation at any instant. Must be
+      (non inclusively) between 0 and 1. Greater than or equal to `:rho_min`.
+
 
     * `:assess_inter` - The interval between workers assessments in
       milliseconds.
@@ -32,27 +43,16 @@ defmodule Lanx do
 
   """
   def start_link(opts) do
-    opts = Keyword.validate!(opts, [:name, :spec, :pool, k: 2, assess_inter: 1000, expiry: 5000])
+    opts = validate_opts(opts)
+    name = opts[:name]
 
-    validate_natural(opts[:k], "k must be a natural number")
-    validate_natural(opts[:assess_inter], "assess_inter must be a natural number in milliseconds")
-    expiry = validate_natural(opts[:expiry], "expiry must be a natural number in milliseconds")
-
-    pool = Keyword.fetch!(opts, :pool)
-    name = Keyword.fetch!(opts, :name)
+    {pool_name, pool_spec} = configure_pool(opts)
 
     supervisor = Module.concat(name, "Supervisor")
 
-    pool_spec =
-      try do
-        FLAME.Pool.child_spec(pool)
-      rescue
-        _ -> raise ArgumentError, "invalid pool params, got: #{inspect(pool)}"
-      end
+    spec = Supervisor.child_spec(opts[:spec], id: :template)
 
-    spec = Supervisor.child_spec(Keyword.fetch!(opts, :spec), id: :template)
-
-    arg = Keyword.merge(opts, pool: Keyword.fetch!(pool, :name), spec: spec, expiry: expiry)
+    arg = Keyword.merge(opts, pool: pool_name, spec: spec, expiry: opts[:expiry])
 
     children = [
       pool_spec,
@@ -65,14 +65,100 @@ defmodule Lanx do
     Supervisor.start_link(children, strategy: :one_for_all, max_restarts: 0, name: supervisor)
   end
 
-  defp validate_natural(val, msg) do
-    case val do
+  defp validate_opts(opts) do
+    opts =
+      Keyword.validate!(opts, [
+        :name,
+        :spec,
+        :pool,
+        min: 0,
+        max: :infinity,
+        rho_min: 0.5,
+        rho_max: 0.75,
+        assess_inter: 1000,
+        expiry: 5000
+      ])
+
+    Keyword.fetch!(opts, :name)
+    Keyword.fetch!(opts, :spec)
+    Keyword.fetch!(opts, :pool)
+
+    min = validate_numerical(opts[:min], -1, "min must be a whole number")
+
+    case Keyword.fetch!(opts, :max) do
+      val when is_integer(val) and val >= min and val > 0 ->
+        val
+
       val when is_integer(val) and val > 0 ->
+        raise ArgumentError,
+          message: "max must be greater than or equal to the min of #{min}, got: #{val}"
+
+      :infinity ->
+        :infinity
+
+      val ->
+        raise ArgumentError,
+          message: "max must be a natural number or :infinity, got: #{inspect(val)}"
+    end
+
+    rho_min =
+      case Keyword.fetch!(opts, :rho_min) do
+        val when is_float(val) and val < 1 and val > 0 ->
+          val
+
+        val ->
+          raise ArgumentError,
+            message: "rho_min must be a float between 0 and 1, got: #{inspect(val)}"
+      end
+
+    case Keyword.fetch!(opts, :rho_max) do
+      val when is_float(val) and val < 1 and val >= rho_min ->
+        val
+
+      val when is_float(val) and val < 1 and val > 0 ->
+        raise ArgumentError,
+          message:
+            "rho_max must be greater than or equal to the rho_min of #{rho_min}, got: #{val}"
+
+      val ->
+        raise ArgumentError,
+          message: "rho_max must be a float between 0 and 1, got: #{inspect(val)}"
+    end
+
+    validate_numerical(
+      opts[:assess_inter],
+      0,
+      "assess_inter must be a natural number in milliseconds"
+    )
+
+    validate_numerical(opts[:expiry], 0, "expiry must be a natural number in milliseconds")
+
+    opts
+  end
+
+  defp validate_numerical(val, gt, msg) do
+    case val do
+      val when is_integer(val) and val > gt ->
         val
 
       val ->
         raise ArgumentError, message: msg <> ", got: #{inspect(val)}"
     end
+  end
+
+  defp configure_pool(opts) do
+    pool = opts[:pool]
+
+    pool_spec =
+      try do
+        FLAME.Pool.child_spec(
+          Keyword.merge(pool, min: opts[:min], max: opts[:max], max_concurrency: 1)
+        )
+      rescue
+        _ -> raise ArgumentError, "invalid pool params, got: #{inspect(pool)}"
+      end
+
+    {Keyword.fetch!(pool, :name), pool_spec}
   end
 
   @doc """
@@ -110,88 +196,70 @@ defmodule Lanx do
 
   @impl true
   def init(opts) do
-    pids =
-      Enum.flat_map(1..opts[:k], fn _ ->
-        result =
-          FLAME.place_child(
-            opts[:pool],
-            opts[:spec]
-          )
+    jobs =
+      :ets.new(:"#{opts[:name]}_jobs", [
+        :set,
+        :public,
+        {:read_concurrency, true},
+        {:write_concurrency, true}
+      ])
 
-        case result do
-          {:ok, pid} -> [pid]
-          _ -> [:error]
-        end
-      end)
+    workers =
+      :ets.new(:"#{opts[:name]}_workers", [
+        :set,
+        :public,
+        {:read_concurrency, true}
+      ])
 
-    if Enum.any?(pids, fn element -> element == :error end) do
-      {:stop, :failed_to_start_node}
-    else
-      jobs =
-        :ets.new(:"#{opts[:name]}_jobs", [
-          :set,
-          :public,
-          {:read_concurrency, true},
-          {:write_concurrency, true}
-        ])
+    Process.send_after(self(), :assess_metrics, opts[:assess_inter])
 
-      workers =
-        :ets.new(:"#{opts[:name]}_workers", [
-          :set,
-          :public,
-          {:read_concurrency, true}
-        ])
+    case start_workers(opts[:min], opts[:pool], opts[:spec], workers) do
+      :ok ->
+        handler = :"#{opts[:name]}_handler"
 
-      Enum.map(pids, fn pid ->
-        Workers.insert(workers, %{id: Helpers.worker_id(), pid: pid})
-      end)
+        :telemetry.attach_many(
+          handler,
+          [
+            [:lanx, :execute, :start],
+            [:lanx, :execute, :stop],
+            [:lanx, :execute, :exception],
+            [:lanx, :execute, :worker, :start],
+            [:lanx, :execute, :worker, :stop]
+          ],
+          &Metrics.handle_event/4,
+          %{
+            lanx: opts[:name],
+            jobs: jobs,
+            workers: workers,
+            expiry: opts[:expiry]
+          }
+        )
 
-      Process.send_after(self(), :assess_metrics, opts[:assess_inter])
+        Process.flag(:trap_exit, true)
 
-      handler = :"#{opts[:name]}_handler"
+        {:ok,
+         %{
+           jobs: jobs,
+           workers: workers,
+           pool: opts[:pool],
+           spec: opts[:spec],
+           min: opts[:min],
+           max: opts[:max],
+           rho_min: opts[:rho_min],
+           rho_max: opts[:rho_max],
+           metrics: %{lambda: 0, mu: 0, rho: 0, c: opts[:min]},
+           assess_inter: opts[:assess_inter],
+           handler: handler
+         }}
 
-      :telemetry.attach_many(
-        handler,
-        [
-          [:lanx, :execute, :start],
-          [:lanx, :execute, :stop],
-          [:lanx, :execute, :exception],
-          [:lanx, :execute, :worker, :start],
-          [:lanx, :execute, :worker, :stop]
-        ],
-        &Metrics.handle_event/4,
-        %{
-          lanx: opts[:name],
-          jobs: jobs,
-          workers: workers,
-          expiry: opts[:expiry]
-        }
-      )
-
-      Process.flag(:trap_exit, true)
-
-      {:ok,
-       %{
-         jobs: jobs,
-         workers: workers,
-         pool: opts[:pool],
-         k: opts[:k],
-         pids: pids,
-         metrics: %{lambda: 0, mu: 0, rho: 0},
-         assess_inter: opts[:assess_inter],
-         handler: handler
-       }}
+      {:error, reason} ->
+        {:stop, reason}
     end
   end
 
   @impl true
   def terminate(_reason, state) do
     :telemetry.detach(state.handler)
-  end
-
-  @impl true
-  def handle_call(:k, _, state) do
-    {:reply, length(state.pids), state}
   end
 
   @impl true
@@ -202,11 +270,6 @@ defmodule Lanx do
   @impl true
   def handle_call(:metrics, _, state) do
     {:reply, state.metrics, state}
-  end
-
-  @impl true
-  def handle_call(:pid, _, state) do
-    {:reply, Enum.random(state.pids), state}
   end
 
   @impl true
@@ -228,10 +291,26 @@ defmodule Lanx do
     Process.send_after(self(), :assess_metrics, state.assess_inter)
 
     jobs = Jobs.dump(state.jobs)
-    metrics = Statistics.assess_system(jobs)
+    metrics = Statistics.assess_system(jobs, Workers.count(state.workers))
 
     updates = Statistics.assess_workers(Workers.dump(state.workers), jobs)
     Workers.update(state.workers, updates)
+
+    c_prime =
+      case Statistics.delta_c(metrics, {state.min, state.max}, {state.rho_min, state.rho_max}) do
+        delta_c when delta_c > 0 ->
+          start_workers(delta_c, state.pool, state.spec, state.workers)
+          metrics.c + delta_c
+
+        delta_c when delta_c == 0 ->
+          metrics.c
+
+        delta_c when delta_c < 0 ->
+          stop_workers(-delta_c, state.workers)
+          metrics.c + delta_c
+      end
+
+    metrics = %{metrics | c: c_prime}
 
     {:noreply, %{state | metrics: metrics}}
   end
@@ -242,5 +321,57 @@ defmodule Lanx do
     Workers.update(state.workers, updates)
 
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:EXIT, pid, :normal}, state) do
+    workers = Workers.dump(state.workers)
+    filtered = Enum.filter(workers, fn worker -> worker.pid == pid end)
+
+    case filtered do
+      [%{id: id, pid: ^pid}] ->
+        Workers.delete(state.workers, id)
+        {:noreply, state}
+
+      [] ->
+        {:noreply, state}
+    end
+  end
+
+  defp start_workers(c, pool, spec, workers) do
+    pids =
+      Enum.flat_map(1..c//1, fn _ ->
+        result =
+          FLAME.place_child(
+            pool,
+            spec
+          )
+
+        case result do
+          {:ok, pid} -> [pid]
+          _ -> []
+        end
+      end)
+
+    if length(pids) == c do
+      Enum.map(pids, fn pid ->
+        Workers.insert(workers, %{id: Helpers.worker_id(), pid: pid})
+      end)
+
+      :ok
+    else
+      {:error, :failed_to_start_node}
+    end
+  end
+
+  defp stop_workers(c, workers) do
+    workers
+    |> Workers.least_utilized(c)
+    |> Enum.each(fn worker ->
+      Workers.delete(workers, worker.id)
+      Process.exit(worker.pid, :normal)
+    end)
+
+    :ok
   end
 end

@@ -13,28 +13,14 @@ defmodule LanxTest do
       assert Process.whereis(config.test)
     end
 
-    test "starts k nodes", config do
-      assert GenServer.call(config.test, :k) == config.params[:k]
-    end
+    test "starts a Lanx instance with just defaults", config do
+      stop_supervised!(config.test)
 
-    test "correctly creates jobs tables", config do
-      {jobs, _} = Lanx.tables(config.test)
-      assert :ets.tab2list(jobs) == []
-    end
+      params =
+        Keyword.drop(config.params, [:min, :max, :rho_min, :rho_max, :assess_inter, :expiry])
 
-    test "correctly creates workers tables", config do
-      {_, workers} = Lanx.tables(config.test)
-      workers = :ets.tab2list(workers)
-
-      assert length(workers) == config.params[:k]
-
-      for {id, pid, lambda, mu, rho} <- workers do
-        assert String.length(id) == 16
-        assert Process.alive?(pid)
-        assert lambda == 0
-        assert mu == 0
-        assert rho == 0
-      end
+      start_supervised!({Lanx, params})
+      assert Process.whereis(config.test)
     end
 
     test "errors on invalid spec", config do
@@ -49,18 +35,60 @@ defmodule LanxTest do
       end
     end
 
-    test "errors on invalid k", config do
-      assert_raise ArgumentError, "k must be a natural number, got: \"bar\"", fn ->
-        Lanx.start_link(Keyword.put(config.params, :k, "bar"))
+    test "errors on invalid min", config do
+      assert_raise ArgumentError, "min must be a whole number, got: \"bar\"", fn ->
+        Lanx.start_link(Keyword.put(config.params, :min, "bar"))
       end
 
-      assert_raise ArgumentError, "k must be a natural number, got: -1", fn ->
-        Lanx.start_link(Keyword.put(config.params, :k, -1))
+      assert_raise ArgumentError, "min must be a whole number, got: -1", fn ->
+        Lanx.start_link(Keyword.put(config.params, :min, -1))
+      end
+    end
+
+    test "errors on invalid max", config do
+      assert_raise ArgumentError, "max must be a natural number or :infinity, got: \"bar\"", fn ->
+        Lanx.start_link(Keyword.put(config.params, :max, "bar"))
       end
 
-      assert_raise ArgumentError, "k must be a natural number, got: 0", fn ->
-        Lanx.start_link(Keyword.put(config.params, :k, 0))
+      assert_raise ArgumentError, "max must be a natural number or :infinity, got: -1", fn ->
+        Lanx.start_link(Keyword.put(config.params, :max, -1))
       end
+
+      assert_raise ArgumentError, "max must be a natural number or :infinity, got: 0", fn ->
+        Lanx.start_link(Keyword.put(config.params, :max, 0))
+      end
+
+      assert_raise ArgumentError,
+                   "max must be greater than or equal to the min of #{config.params[:min]}, got: 2",
+                   fn ->
+                     Lanx.start_link(Keyword.put(config.params, :max, 2))
+                   end
+    end
+
+    test "errors on invalid rho_min", config do
+      assert_raise ArgumentError, "rho_min must be a float between 0 and 1, got: \"bar\"", fn ->
+        Lanx.start_link(Keyword.put(config.params, :rho_min, "bar"))
+      end
+
+      assert_raise ArgumentError, "rho_min must be a float between 0 and 1, got: -1", fn ->
+        Lanx.start_link(Keyword.put(config.params, :rho_min, -1))
+      end
+    end
+
+    test "errors on invalid rho_max", config do
+      assert_raise ArgumentError, "rho_max must be a float between 0 and 1, got: \"bar\"", fn ->
+        Lanx.start_link(Keyword.put(config.params, :rho_max, "bar"))
+      end
+
+      assert_raise ArgumentError, "rho_max must be a float between 0 and 1, got: -1", fn ->
+        Lanx.start_link(Keyword.put(config.params, :rho_max, -1))
+      end
+
+      assert_raise ArgumentError,
+                   "rho_max must be greater than or equal to the rho_min of 0.5, got: 0.1",
+                   fn ->
+                     Lanx.start_link(Keyword.put(config.params, :rho_max, 0.1))
+                   end
     end
 
     test "errors on invalid expiry", config do
@@ -94,10 +122,29 @@ defmodule LanxTest do
       assert {:error, {:shutdown, {_, _, :failed_to_start_node}}} = Lanx.start_link(params)
     end
 
-    test "starts tables", config do
-      {jobs, workers} = Lanx.tables(config.test)
-      assert Lanx.Jobs.count(jobs)
-      assert Lanx.Workers.count(workers) == config.params[:k]
+    test "starts min nodes", config do
+      {_, workers} = Lanx.tables(config.test)
+      assert Workers.count(workers) == config.params[:min]
+    end
+
+    test "correctly creates jobs tables", config do
+      {jobs, _} = Lanx.tables(config.test)
+      assert :ets.tab2list(jobs) == []
+    end
+
+    test "correctly creates workers tables", config do
+      {_, workers} = Lanx.tables(config.test)
+      workers = :ets.tab2list(workers)
+
+      assert length(workers) == config.params[:min]
+
+      for {id, pid, lambda, mu, rho} <- workers do
+        assert String.length(id) == 16
+        assert Process.alive?(pid)
+        assert lambda == 0
+        assert mu == 0
+        assert rho == 0
+      end
     end
 
     test "attaches telemetry handlers", config do
@@ -161,11 +208,54 @@ defmodule LanxTest do
   end
 
   test "metrics/1", config do
-    assert Lanx.metrics(config.test) == %{lambda: 0, mu: 0, rho: 0}
+    assert Lanx.metrics(config.test) == %{
+             lambda: 0,
+             mu: 0,
+             rho: 0,
+             c: config.params[:min]
+           }
   end
 
   describe "assesses" do
     test "metrics on info", config do
+      {jobs, workers} = Lanx.tables(config.test)
+      worker = :ets.first(workers)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
+
+      Jobs.insert(jobs, %{
+        id: Helpers.job_id(),
+        worker: worker,
+        system_arrival: time,
+        worker_arrival: time,
+        tau: 5
+      })
+
+      Jobs.insert(jobs, %{
+        id: Helpers.job_id(),
+        worker: worker,
+        system_arrival: time + 2,
+        worker_arrival: time + 2,
+        tau: 5
+      })
+
+      send(config.test, :assess_metrics)
+      Process.sleep(1)
+
+      metrics = Lanx.metrics(config.test)
+
+      assert metrics.lambda == 1
+      assert metrics.mu == 0.2
+      assert metrics.rho == 5
+      assert metrics.c == Workers.count(workers)
+
+      worker = Workers.lookup(workers, worker)
+
+      assert worker.lambda == 1
+      assert worker.mu == 0.2
+      assert worker.rho == 5
+    end
+
+    test "metrics and starts workers if needed", config do
       {jobs, workers} = Lanx.tables(config.test)
       worker = :ets.first(workers)
       time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
@@ -189,17 +279,71 @@ defmodule LanxTest do
       send(config.test, :assess_metrics)
       Process.sleep(1)
 
+      c_prime = config.params[:min] + 3
       metrics = Lanx.metrics(config.test)
 
       assert metrics.lambda == 1
       assert metrics.mu == 0.1
       assert metrics.rho == 10
+      assert metrics.c == c_prime
+      assert Workers.count(workers) == c_prime
+    end
 
-      worker = Workers.lookup(workers, worker)
+    test "metrics and stops workers if needed", config do
+      stop_supervised!(config.test)
+      start_supervised!({Lanx, Keyword.put(config.params, :min, 1)}, id: config.test)
 
-      assert worker.lambda == 1
-      assert worker.mu == 0.1
-      assert worker.rho == 10
+      {jobs, workers} = Lanx.tables(config.test)
+      worker = :ets.first(workers)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
+
+      id1 = Helpers.job_id()
+      id2 = Helpers.job_id()
+
+      Jobs.insert(jobs, %{
+        id: id1,
+        worker: worker,
+        system_arrival: time,
+        worker_arrival: time,
+        tau: 10
+      })
+
+      Jobs.insert(jobs, %{
+        id: id2,
+        worker: worker,
+        system_arrival: time + 2,
+        worker_arrival: time + 2,
+        tau: 10
+      })
+
+      # Start extra workers
+
+      send(config.test, :assess_metrics)
+      Process.sleep(1)
+
+      metrics = Lanx.metrics(config.test)
+
+      assert metrics.lambda == 1
+      assert metrics.mu == 0.1
+      assert metrics.rho == 10
+      assert metrics.c == 13
+      assert Workers.count(workers) == 13
+
+      # Stop extra workers
+
+      Jobs.delete(jobs, id1)
+      Jobs.delete(jobs, id2)
+
+      send(config.test, :assess_metrics)
+      Process.sleep(1)
+
+      metrics = Lanx.metrics(config.test)
+
+      assert metrics.lambda == 0
+      assert metrics.mu == 0
+      assert metrics.rho == 0
+      assert metrics.c == 1
+      assert Workers.count(workers) == 1
     end
 
     test "workers on info", config do
