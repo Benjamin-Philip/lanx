@@ -196,79 +196,64 @@ defmodule Lanx do
 
   @impl true
   def init(opts) do
-    pids =
-      Enum.flat_map(1..opts[:min], fn _ ->
-        result =
-          FLAME.place_child(
-            opts[:pool],
-            opts[:spec]
-          )
+    jobs =
+      :ets.new(:"#{opts[:name]}_jobs", [
+        :set,
+        :public,
+        {:read_concurrency, true},
+        {:write_concurrency, true}
+      ])
 
-        case result do
-          {:ok, pid} -> [pid]
-          _ -> [:error]
-        end
-      end)
+    workers =
+      :ets.new(:"#{opts[:name]}_workers", [
+        :set,
+        :public,
+        {:read_concurrency, true}
+      ])
 
-    if Enum.any?(pids, fn element -> element == :error end) do
-      {:stop, :failed_to_start_node}
-    else
-      jobs =
-        :ets.new(:"#{opts[:name]}_jobs", [
-          :set,
-          :public,
-          {:read_concurrency, true},
-          {:write_concurrency, true}
-        ])
+    Process.send_after(self(), :assess_metrics, opts[:assess_inter])
 
-      workers =
-        :ets.new(:"#{opts[:name]}_workers", [
-          :set,
-          :public,
-          {:read_concurrency, true}
-        ])
+    case start_workers(opts[:min], opts[:pool], opts[:spec], workers) do
+      :ok ->
+        handler = :"#{opts[:name]}_handler"
 
-      Enum.map(pids, fn pid ->
-        Workers.insert(workers, %{id: Helpers.worker_id(), pid: pid})
-      end)
+        :telemetry.attach_many(
+          handler,
+          [
+            [:lanx, :execute, :start],
+            [:lanx, :execute, :stop],
+            [:lanx, :execute, :exception],
+            [:lanx, :execute, :worker, :start],
+            [:lanx, :execute, :worker, :stop]
+          ],
+          &Metrics.handle_event/4,
+          %{
+            lanx: opts[:name],
+            jobs: jobs,
+            workers: workers,
+            expiry: opts[:expiry]
+          }
+        )
 
-      Process.send_after(self(), :assess_metrics, opts[:assess_inter])
+        Process.flag(:trap_exit, true)
 
-      handler = :"#{opts[:name]}_handler"
+        {:ok,
+         %{
+           jobs: jobs,
+           workers: workers,
+           pool: opts[:pool],
+           spec: opts[:spec],
+           min: opts[:min],
+           max: opts[:max],
+           rho_min: opts[:rho_min],
+           rho_max: opts[:rho_max],
+           metrics: %{lambda: 0, mu: 0, rho: 0, c: opts[:min]},
+           assess_inter: opts[:assess_inter],
+           handler: handler
+         }}
 
-      :telemetry.attach_many(
-        handler,
-        [
-          [:lanx, :execute, :start],
-          [:lanx, :execute, :stop],
-          [:lanx, :execute, :exception],
-          [:lanx, :execute, :worker, :start],
-          [:lanx, :execute, :worker, :stop]
-        ],
-        &Metrics.handle_event/4,
-        %{
-          lanx: opts[:name],
-          jobs: jobs,
-          workers: workers,
-          expiry: opts[:expiry]
-        }
-      )
-
-      Process.flag(:trap_exit, true)
-
-      {:ok,
-       %{
-         jobs: jobs,
-         workers: workers,
-         pool: opts[:pool],
-         min: opts[:min],
-         max: opts[:max],
-         rho_min: opts[:rho_min],
-         rho_max: opts[:rho_max],
-         metrics: %{lambda: 0, mu: 0, rho: 0, c: opts[:min]},
-         assess_inter: opts[:assess_inter],
-         handler: handler
-       }}
+      {:error, reason} ->
+        {:stop, reason}
     end
   end
 
@@ -311,6 +296,22 @@ defmodule Lanx do
     updates = Statistics.assess_workers(Workers.dump(state.workers), jobs)
     Workers.update(state.workers, updates)
 
+    c_prime =
+      case Statistics.delta_c(metrics, {state.min, state.max}, {state.rho_min, state.rho_max}) do
+        delta_c when delta_c > 0 ->
+          start_workers(delta_c, state.pool, state.spec, state.workers)
+          metrics.c + delta_c
+
+        delta_c when delta_c == 0 ->
+          metrics.c
+
+        delta_c when delta_c < 0 ->
+          stop_workers(-delta_c, state.workers)
+          metrics.c + delta_c
+      end
+
+    metrics = %{metrics | c: c_prime}
+
     {:noreply, %{state | metrics: metrics}}
   end
 
@@ -320,5 +321,57 @@ defmodule Lanx do
     Workers.update(state.workers, updates)
 
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:EXIT, pid, :normal}, state) do
+    workers = Workers.dump(state.workers)
+    filtered = Enum.filter(workers, fn worker -> worker.pid == pid end)
+
+    case filtered do
+      [%{id: id, pid: ^pid}] ->
+        Workers.delete(state.workers, id)
+        {:noreply, state}
+
+      [] ->
+        {:noreply, state}
+    end
+  end
+
+  defp start_workers(c, pool, spec, workers) do
+    pids =
+      Enum.flat_map(1..c//1, fn _ ->
+        result =
+          FLAME.place_child(
+            pool,
+            spec
+          )
+
+        case result do
+          {:ok, pid} -> [pid]
+          _ -> []
+        end
+      end)
+
+    if length(pids) == c do
+      Enum.map(pids, fn pid ->
+        Workers.insert(workers, %{id: Helpers.worker_id(), pid: pid})
+      end)
+
+      :ok
+    else
+      {:error, :failed_to_start_node}
+    end
+  end
+
+  defp stop_workers(c, workers) do
+    workers
+    |> Workers.least_utilized(c)
+    |> Enum.each(fn worker ->
+      Workers.delete(workers, worker.id)
+      Process.exit(worker.pid, :normal)
+    end)
+
+    :ok
   end
 end

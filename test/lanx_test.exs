@@ -13,6 +13,16 @@ defmodule LanxTest do
       assert Process.whereis(config.test)
     end
 
+    test "starts a Lanx instance with just defaults", config do
+      stop_supervised!(config.test)
+
+      params =
+        Keyword.drop(config.params, [:min, :max, :rho_min, :rho_max, :assess_inter, :expiry])
+
+      start_supervised!({Lanx, params})
+      assert Process.whereis(config.test)
+    end
+
     test "errors on invalid spec", config do
       assert_raise ArgumentError, fn ->
         Lanx.start_link(Keyword.put(config.params, :spec, "foo"))
@@ -217,6 +227,44 @@ defmodule LanxTest do
         worker: worker,
         system_arrival: time,
         worker_arrival: time,
+        tau: 5
+      })
+
+      Jobs.insert(jobs, %{
+        id: Helpers.job_id(),
+        worker: worker,
+        system_arrival: time + 2,
+        worker_arrival: time + 2,
+        tau: 5
+      })
+
+      send(config.test, :assess_metrics)
+      Process.sleep(1)
+
+      metrics = Lanx.metrics(config.test)
+
+      assert metrics.lambda == 1
+      assert metrics.mu == 0.2
+      assert metrics.rho == 5
+      assert metrics.c == Workers.count(workers)
+
+      worker = Workers.lookup(workers, worker)
+
+      assert worker.lambda == 1
+      assert worker.mu == 0.2
+      assert worker.rho == 5
+    end
+
+    test "metrics and starts workers if needed", config do
+      {jobs, workers} = Lanx.tables(config.test)
+      worker = :ets.first(workers)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
+
+      Jobs.insert(jobs, %{
+        id: Helpers.job_id(),
+        worker: worker,
+        system_arrival: time,
+        worker_arrival: time,
         tau: 10
       })
 
@@ -231,18 +279,71 @@ defmodule LanxTest do
       send(config.test, :assess_metrics)
       Process.sleep(1)
 
+      c_prime = config.params[:min] + 3
       metrics = Lanx.metrics(config.test)
 
       assert metrics.lambda == 1
       assert metrics.mu == 0.1
       assert metrics.rho == 10
-      assert metrics.c == Workers.count(workers)
+      assert metrics.c == c_prime
+      assert Workers.count(workers) == c_prime
+    end
 
-      worker = Workers.lookup(workers, worker)
+    test "metrics and stops workers if needed", config do
+      stop_supervised!(config.test)
+      start_supervised!({Lanx, Keyword.put(config.params, :min, 1)}, id: config.test)
 
-      assert worker.lambda == 1
-      assert worker.mu == 0.1
-      assert worker.rho == 10
+      {jobs, workers} = Lanx.tables(config.test)
+      worker = :ets.first(workers)
+      time = System.convert_time_unit(:erlang.system_time(), :native, :microsecond)
+
+      id1 = Helpers.job_id()
+      id2 = Helpers.job_id()
+
+      Jobs.insert(jobs, %{
+        id: id1,
+        worker: worker,
+        system_arrival: time,
+        worker_arrival: time,
+        tau: 10
+      })
+
+      Jobs.insert(jobs, %{
+        id: id2,
+        worker: worker,
+        system_arrival: time + 2,
+        worker_arrival: time + 2,
+        tau: 10
+      })
+
+      # Start extra workers
+
+      send(config.test, :assess_metrics)
+      Process.sleep(1)
+
+      metrics = Lanx.metrics(config.test)
+
+      assert metrics.lambda == 1
+      assert metrics.mu == 0.1
+      assert metrics.rho == 10
+      assert metrics.c == 13
+      assert Workers.count(workers) == 13
+
+      # Stop extra workers
+
+      Jobs.delete(jobs, id1)
+      Jobs.delete(jobs, id2)
+
+      send(config.test, :assess_metrics)
+      Process.sleep(1)
+
+      metrics = Lanx.metrics(config.test)
+
+      assert metrics.lambda == 0
+      assert metrics.mu == 0
+      assert metrics.rho == 0
+      assert metrics.c == 1
+      assert Workers.count(workers) == 1
     end
 
     test "workers on info", config do

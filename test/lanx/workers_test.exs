@@ -45,6 +45,16 @@ defmodule Lanx.WorkersTest do
     assert worker.id == worker2.id
   end
 
+  test "least_utilized/2", config do
+    [0, 0.25, 0.5, 0.75, 1]
+    |> Enum.map(fn rho -> %{id: Helpers.worker_id(), pid: self(), rho: rho} end)
+    |> Enum.each(fn worker -> Workers.insert(config.table, worker) end)
+
+    [worker1, worker2] = Workers.least_utilized(config.table, 2)
+    assert worker1.rho == 0
+    assert worker2.rho == 0.25
+  end
+
   test "update/2", config do
     id = Helpers.worker_id()
     worker = %{id: id, pid: self()}
