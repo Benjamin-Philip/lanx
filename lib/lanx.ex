@@ -164,7 +164,7 @@ defmodule Lanx do
   @doc """
   Returns the job and worker ets tables of the Lanx instance given a name.
   """
-  def tables(name), do: GenServer.call(name, :tables)
+  def tables(name), do: :persistent_term.get(name, nil)
 
   @doc """
   Runs a job an a server.
@@ -210,6 +210,8 @@ defmodule Lanx do
         :public,
         {:read_concurrency, true}
       ])
+
+    :persistent_term.put(opts[:name], {jobs, workers})
 
     Process.send_after(self(), :assess_metrics, opts[:assess_inter])
 
@@ -260,11 +262,6 @@ defmodule Lanx do
   @impl true
   def terminate(_reason, state) do
     :telemetry.detach(state.handler)
-  end
-
-  @impl true
-  def handle_call(:tables, _, state) do
-    {:reply, {state.jobs, state.workers}, state}
   end
 
   @impl true
