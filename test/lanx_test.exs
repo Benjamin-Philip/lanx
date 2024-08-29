@@ -153,11 +153,22 @@ defmodule LanxTest do
       assert [%{id: ^id}] =
                :telemetry.list_handlers([:lanx, :execute, :start])
     end
+
+    test "creates persistent_term", config do
+      assert :persistent_term.get(config.test, nil)
+    end
   end
 
-  test "terminate/2 detaches telemetry handlers", config do
-    stop_supervised!(config.test)
-    assert :telemetry.list_handlers([:lanx, :execute, :start]) == []
+  describe "terminate/2" do
+    test "detaches telemetry handlers", config do
+      stop_supervised!(config.test)
+      assert :telemetry.list_handlers([:lanx, :execute, :start]) == []
+    end
+
+    test "erases persistent term", config do
+      stop_supervised!(config.test)
+      refute :persistent_term.get(config.test, nil)
+    end
   end
 
   test "tables/2 returns ets tables", config do

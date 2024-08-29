@@ -241,6 +241,7 @@ defmodule Lanx do
 
         {:ok,
          %{
+           name: opts[:name],
            jobs: jobs,
            workers: workers,
            pool: opts[:pool],
@@ -261,6 +262,7 @@ defmodule Lanx do
 
   @impl true
   def terminate(_reason, state) do
+    :persistent_term.erase(state.name)
     :telemetry.detach(state.handler)
   end
 
