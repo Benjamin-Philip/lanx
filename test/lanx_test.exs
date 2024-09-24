@@ -1,5 +1,5 @@
 defmodule LanxTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
   doctest Lanx
 
   alias Lanx.{Helpers, Jobs, Workers}
@@ -147,34 +147,32 @@ defmodule LanxTest do
       end
     end
 
-    test "attaches telemetry handlers", config do
-      id = :"#{config.test}_handler"
-
-      assert [%{id: ^id}] =
-               :telemetry.list_handlers([:lanx, :execute, :start])
-    end
-
     test "creates persistent_term", config do
       assert :persistent_term.get(config.test, nil)
     end
   end
 
   describe "terminate/2" do
-    test "detaches telemetry handlers", config do
-      stop_supervised!(config.test)
-      assert :telemetry.list_handlers([:lanx, :execute, :start]) == []
-    end
-
     test "erases persistent term", config do
       stop_supervised!(config.test)
       refute :persistent_term.get(config.test, nil)
     end
   end
 
-  test "tables/2 returns ets tables", config do
+  test "tables/1 returns ets tables", config do
     assert {jobs, workers} = Lanx.tables(config.test)
     assert :ets.info(jobs) != :undefined
     assert :ets.info(workers) != :undefined
+  end
+
+  test "expiry/1 returns expiry", config do
+    assert Lanx.expiry(config.test) > 0
+  end
+
+  test "persisted/1 returns persisted info", config do
+    info = Lanx.persisted(config.test)
+    assert info.tables == Lanx.tables(config.test)
+    assert info.expiry == Lanx.expiry(config.test)
   end
 
   describe "run/2" do
@@ -200,6 +198,8 @@ defmodule LanxTest do
     test "assesses worker", config do
       Lanx.run(config.test, fn pid -> NaiveJQ.run(pid, config.test) end)
       {jobs, workers} = Lanx.tables(config.test)
+
+      Process.sleep(2)
 
       [%{worker: id}] = Jobs.dump(jobs)
       worker = Workers.lookup(workers, id)
