@@ -5,6 +5,17 @@ defmodule Lanx.Workers do
   # {id, pid, lambda, mu, rho}
 
   @doc """
+  Creates a new workers table given a table name.
+  """
+  def new(name) do
+    :ets.new(name, [
+      :set,
+      :public,
+      {:read_concurrency, true}
+    ])
+  end
+
+  @doc """
   Inserts a worker given a map. Inserted workers must have an id.
   """
   def insert(table, worker = %{id: _id}) do

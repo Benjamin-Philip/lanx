@@ -5,6 +5,18 @@ defmodule Lanx.Jobs do
   # {id, worker, system_arrival, worker_arrival, tau, failed?}
 
   @doc """
+  Creates a new jobs table, given a table name.
+  """
+  def new(name) do
+    :ets.new(name, [
+      :set,
+      :public,
+      {:read_concurrency, true},
+      {:write_concurrency, true}
+    ])
+  end
+
+  @doc """
   Inserts a job given a map. Inserted jobs must have an id.
   """
   def insert(table, job = %{id: _id}) do

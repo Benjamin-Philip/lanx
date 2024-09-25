@@ -205,20 +205,8 @@ defmodule Lanx do
 
   @impl true
   def init(opts) do
-    jobs =
-      :ets.new(:"#{opts[:name]}_jobs", [
-        :set,
-        :public,
-        {:read_concurrency, true},
-        {:write_concurrency, true}
-      ])
-
-    workers =
-      :ets.new(:"#{opts[:name]}_workers", [
-        :set,
-        :public,
-        {:read_concurrency, true}
-      ])
+    jobs = Jobs.new(:"#{opts[:name]}_jobs")
+    workers = Workers.new(:"#{opts[:name]}_workers")
 
     :persistent_term.put(opts[:name], %{tables: {jobs, workers}, expiry: opts[:expiry]})
 
