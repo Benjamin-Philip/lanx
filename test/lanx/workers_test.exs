@@ -4,8 +4,11 @@ defmodule Lanx.WorkersTest do
   alias Lanx.{Workers, Helpers}
 
   setup config do
-    table = :ets.new(config.test, [:set])
-    Map.put_new(config, :table, table)
+    Map.put_new(config, :table, Workers.new(config.test))
+  end
+
+  test "new/1", config do
+    assert :ets.info(config.table) != :undefinied
   end
 
   test "insert/2", config do
