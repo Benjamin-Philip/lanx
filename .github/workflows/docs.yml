@@ -69,4 +69,4 @@ jobs:
       id: deployment
       uses: actions/deploy-pages@v4.0.5
       with:
-        preview: ${{ if github.ref != 'refs/heads/main' }}
+        preview: ${{ github.ref != 'refs/heads/main' }}
