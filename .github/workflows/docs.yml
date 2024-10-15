@@ -16,15 +16,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@latest
+    - uses: actions/checkout@v4
     - name: Set up Elixir
-      uses: erlef/setup-beam@latest
+      uses: erlef/setup-beam@v1
       with:
         elixir-version: ${{ env.elixir }}
         otp-version: ${{ env.otp }}
 
     - name: Restore dependencies cache
-      uses: actions/cache@latest
+      uses: actions/cache@v4
       with:
         path: |
           deps
@@ -39,7 +39,7 @@ jobs:
       run: mix docs
 
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@latest
+      uses: actions/upload-pages-artifact@v3
       with:
         path: 'doc'
 
@@ -64,4 +64,4 @@ jobs:
     steps:
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@latest
+      uses: actions/deploy-pages@v4
