@@ -52,7 +52,8 @@ defmodule Lanx.MixProject do
       {:flame, "~> 0.1.12"},
       {:telemetry, "~> 1.2.1"},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
-      {:benchee, "~> 1.3.1", only: :bench, runtime: false}
+      {:benchee, "~> 1.3.1", only: :bench, runtime: false},
+      {:benchee_markdown, "~> 0.3.3", only: :bench, runtime: false}
     ]
   end
 
