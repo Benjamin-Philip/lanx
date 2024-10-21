@@ -89,6 +89,8 @@ jobs:
             let filtered = list.data;
             filtered.filter((issue) => issue.user.login == 'github-actions[bot]');
 
+            console.log(filtered);
+
             if (filtered == []) {
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
