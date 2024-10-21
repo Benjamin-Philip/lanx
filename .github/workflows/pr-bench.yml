@@ -86,7 +86,8 @@ jobs:
             await list;
             console.log(list);
             console.log(typeof(list));
-            let filtered = list.filter((issue) => issue.user.login == 'github-actions[bot]');
+            let filtered = list.data
+            filtered.filter((issue) => issue.user.login == 'github-actions[bot]');
 
             if (filtered == []) {
               github.rest.issues.createComment({
