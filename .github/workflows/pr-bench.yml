@@ -77,17 +77,16 @@ jobs:
           script: |
             let body = require('fs').readFileSync('./benchmarks/profile/saves/report.md').toString();
 
-            let list = github.rest.issues.listComments({
+            let list = await github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
 
-            await list;
+            console.log(list);
+            console.log(list.data);
 
-            console.log(list)
-            console.log(list.data)
-            let filtered = list.data
+            let filtered = list.data;
             filtered.filter((issue) => issue.user.login == 'github-actions[bot]');
 
             if (filtered == []) {
