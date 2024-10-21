@@ -49,9 +49,6 @@ jobs:
           path: 'benchmarks/profile/saves'
         continue-on-error: true
 
-      - name: Path
-        run: pwd && ls -R ~
-
       - name: Benchmark base
         if: ${{ steps.download.conclusion == 'failure' }}
         run: |
@@ -74,7 +71,8 @@ jobs:
           mix bench.profile.report
 
       - name: Comment
-        uses: actions/github-script@v4.0.2
+        uses: actions/checkout@v4
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
