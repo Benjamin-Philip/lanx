@@ -75,9 +75,27 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            github.issues.createComment({
+            let body = require('fs').readFile('/home/runner/lanx/lanx/benchmarks/profiles/saves/report.md').toString();
+
+            let filtered = github.issues.listComments = ({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: require('fs').readFileSync('/home/runner/lanx/lanx/benchmarks/profiles/saves/report.md').toString()
-            });
+              body: body
+            }).filter((issue) => issue.user.login == 'github-actions[bot]');
+
+            if (filtered == []) {
+              github.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } else {
+              github.issues.updateComment({
+                comment_id: filtered[0].id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
