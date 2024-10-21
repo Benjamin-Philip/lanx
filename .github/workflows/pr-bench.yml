@@ -84,6 +84,7 @@ jobs:
             });
 
             await list;
+
             console.log(list)
             console.log(list.data)
             let filtered = list.data
