@@ -49,6 +49,9 @@ jobs:
           path: 'benchmarks/profile/saves'
         continue-on-error: true
 
+      - name: Path
+        run: pwd && ls -R ~
+
       - name: Benchmark base
         if: ${{ steps.download.conclusion == 'failure' }}
         run: |
