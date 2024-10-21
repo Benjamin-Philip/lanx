@@ -77,7 +77,7 @@ jobs:
           script: |
             let body = require('fs').readFileSync('./benchmarks/profile/saves/report.md').toString();
 
-            let filtered = github.issues.listComments({
+            let filtered = github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -85,14 +85,14 @@ jobs:
             }).filter((issue) => issue.user.login == 'github-actions[bot]');
 
             if (filtered == []) {
-              github.issues.createComment({
+              github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 body: body
               });
             } else {
-              github.issues.updateComment({
+              github.rest.issues.updateComment({
                 comment_id: filtered[0].id,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
