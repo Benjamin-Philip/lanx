@@ -75,8 +75,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            console.log(process.cwd())
-            let body = require('fs').readFileSync('/home/runner/lanx/lanx/benchmarks/profiles/saves/report.md').toString();
+            let body = require('fs').readFileSync('./benchmarks/profile/saves/report.md').toString();
 
             let filtered = github.issues.listComments = ({
               issue_number: context.issue.number,
