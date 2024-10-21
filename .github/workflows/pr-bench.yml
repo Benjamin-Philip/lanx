@@ -69,7 +69,7 @@ jobs:
       - name: Generate Report
         run: |
           mix bench.profile.report
-          cat benchmarks/profile/saves/report.md > ${{ env.PR_COMMENT }}
+          echo PR_COMMENT=$(cat benchmarks/profile/saves/report.md) >> $GITHUB_ENV
 
       - name: Comment
         uses: actions/github-script@v4.0.2
