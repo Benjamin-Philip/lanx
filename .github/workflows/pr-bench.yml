@@ -92,6 +92,7 @@ jobs:
             console.log(filtered);
 
             if (filtered == []) {
+              console.log("if");
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
@@ -99,6 +100,7 @@ jobs:
                 body: body
               });
             } else {
+              console.log("else);
               github.rest.issues.updateComment({
                 comment_id: filtered[0].id,
                 owner: context.repo.owner,
