@@ -82,6 +82,8 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
+            console.log(list);
+            console.log(typeof(list));
             let filtered = list.filter((issue) => issue.user.login == 'github-actions[bot]');
 
             if (filtered == []) {
