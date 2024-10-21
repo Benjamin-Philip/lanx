@@ -11,8 +11,8 @@ env:
   elixir: 1.16.2
 
 jobs:
-  build:
-    name: Build
+  benchmark:
+    name: Benchmark and Report
     runs-on: ubuntu-latest
 
     steps:
@@ -29,7 +29,7 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-elixir-${{ env.elixir }}-otp-${{ env.otp }}-${{ hashFiles('**/mix.lock') }}
+          key: bench-${{ runner.os }}-elixir-${{ env.elixir }}-otp-${{ env.otp }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
 
       - name: Install dependencies
