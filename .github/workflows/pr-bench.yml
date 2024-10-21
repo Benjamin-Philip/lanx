@@ -75,13 +75,14 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            let list = github.rest.issues.listComments({
+            let body = require('fs').readFileSync('./benchmarks/profile/saves/report.md').toString();
+
+            var list;
+            await list = github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
             });
-
-            let body = require('fs').readFileSync('./benchmarks/profile/saves/report.md').toString();
 
             console.log(list);
             console.log(typeof(list));
