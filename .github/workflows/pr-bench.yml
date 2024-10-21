@@ -47,7 +47,7 @@ jobs:
         continue-on-error: true
 
       - name: Benchmark base
-        if: ${{ failure() && steps.download.outcome == 'failure' }}
+        if: ${{ steps.download.outcome == 'failure' }}
         run: |
           git checkout ${{ github.event.pull_request.base.sha }}
           mix bench.profile.run --tag base
