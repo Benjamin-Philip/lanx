@@ -45,6 +45,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: pr-${{ github.event.number }}-*
+          merge-multiple: true
           path: 'benchmarks/profile/saves'
         continue-on-error: true
 
