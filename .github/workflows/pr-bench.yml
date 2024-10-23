@@ -45,6 +45,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: pr-${{ github.event.number }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           path: 'benchmarks/profile/saves'
         continue-on-error: true
 
