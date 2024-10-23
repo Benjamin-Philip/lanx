@@ -85,15 +85,10 @@ jobs:
               repo: context.repo.repo,
             });
 
-            console.log(list);
-
             let filtered = list.data;
             filtered.filter((issue) => issue.user.login == github.rest.users.getAuthenticated());
 
-            console.log(filtered);
-
             if (filtered.length == 0) {
-              console.log("if");
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
@@ -101,7 +96,6 @@ jobs:
                 body: body
               });
             } else {
-              console.log("else");
               github.rest.issues.updateComment({
                 comment_id: filtered[0].id,
                 owner: context.repo.owner,
