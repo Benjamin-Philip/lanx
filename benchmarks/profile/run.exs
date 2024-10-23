@@ -61,7 +61,7 @@ Benchee.run(
     else
       false
     end,
-  #  time: 60,
+  time: 60,
   save: save_opts,
   formatters: []
 )
