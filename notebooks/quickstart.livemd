@@ -1,0 +1,97 @@
+# Lanx Quickstart
+
+```elixir
+Mix.install(
+  [
+    {:lanx, github: "Benjamin-Philip/lanx"},
+    {:bumblebee, "~> 0.5.3"},
+    {:scidata, "~> 0.1.11"},
+    {:exla, "~> 0.7.3"},
+    {:kino, "~> 0.13.2"},
+    {:nx, "~> 0.7.3"}
+  ],
+  config: [nx: [default_backend: EXLA.Backend]]
+)
+```
+
+## Introduction
+
+Lanx is a [FLAME](https://github.com/phoenixframework/flame) backed job queue. It automatically
+scales a service up or down, creating new workers, in order to achieve a certain utilization range
+of each worker.
+
+Internally, it treats the job queue as a hetrogenous 
+[M/M/c queue](https://en.wikipedia.org/wiki/M/M/c_queue), and maintains an arrival rate, departure
+rate and utilization ratio for each worker. It then uses standard 
+[queueing theory](https://en.wikipedia.org/wiki/Queueing_theory) constructs to decide *by how much*
+to scale workers, and FLAME to actually manage them.
+
+<!-- livebook:{"break_markdown":true} -->
+
+In this quickstart, we'll demonstrate using Lanx to serve 
+[ResNet-50](https://huggingface.co/microsoft/resnet-50), an image classification model.
+
+## Setting up the spec and the data
+
+Lanx accepts service [child specs](https://kobrakai.de/kolumne/child-specs-in-elixir), 
+just as you would pass to a Supervisor. We will have to write a spec for 
+[Nx.Serving](https://hexdocs.pm/nx/Nx.Serving.html), our model server.
+We can then generate a resnet serving for Nx to serve with the help of 
+[Bumblebee](https://github.com/elixir-nx/bumblebee/):
+
+```elixir
+{:ok, resnet} = Bumblebee.load_model({:hf, "microsoft/resnet-50"})
+{:ok, featurizer} = Bumblebee.load_featurizer({:hf, "microsoft/resnet-50"})
+serving = Bumblebee.Vision.image_classification(resnet, featurizer)
+
+spec =
+  {Nx.Serving, serving: serving, name: Quickstart.Serving, batch_size: 10, batch_timeout: 100}
+```
+
+Additionally we can download some images to test lanx with from the 
+[CIFAR-10](https://en.wikipedia.org/wiki/CIFAR-10) dataset:
+
+```elixir
+{{bin, type, shape}, _labels} = Scidata.CIFAR10.download_test()
+images = Nx.from_binary(bin, type) |> Nx.reshape(shape)
+```
+
+Finally we can write a quick function to return a random image:
+
+```elixir
+defmodule Quickstart.Image do
+  @count 5000 - 1
+  
+  def random(images) do
+    index = Enum.random(0..@count)
+    Nx.reshape(images[index], {32, 32, 3})
+  end
+end
+```
+
+## Running Lanx
+
+Lanx uses FLAME to start each worker. We will have to pass the parameters setup a FLAME Pool. 
+Note that `min`, and `max` are overwritten to match the Lanx parameters, and `max_concurrecy`
+is overwritten as 1.
+
+```elixir
+pool_params = [name: Quickstart.Runner]
+```
+
+We can now initialize Lanx itself. Here we must pass a name, the pool params, and a service spec. 
+A good configuration to start with would be:
+
+```elixir
+lanx = Kino.start_child!({Lanx, [name: Quickstart.Queue, pool: pool_params, min: 1, max: 10, spec: spec]})
+```
+
+Jobs can be run with `Lanx.run/2`, which accepts a name or a pid, and a single arity 
+anonymous function. The anonymous function, which we have to implement, accepts the 
+worker pid and takes care of running the job on the assigned worker.
+
+In our example, this is as simple as:
+
+```elixir
+Lanx.run(Quickstart.Queue, fn _pid -> Nx.Serving.batched_run({:local, pid}, Quickstart.Image.random(images)) end)
+```
