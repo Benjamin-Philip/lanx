@@ -27,16 +27,18 @@ jobs:
           otp-version: ${{ env.otp }}
 
       - name: Restore dependencies cache
+        id: cache
         uses: actions/cache@v4
         with:
           path: |
             deps
             _build
-          key: bench-${{ runner.os }}-elixir-${{ env.elixir }}-otp-${{ env.otp }}-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-elixir-${{ env.elixir }}-otp-${{ env.otp }}-${{ hashFiles('**/mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
 
       - name: Install dependencies
-        run: MIX_ENV=bench mix do deps.get, deps.compile
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        run: mix do deps.get, deps.compile
 
       - name: Build
         run: MIX_ENV=bench mix compile
