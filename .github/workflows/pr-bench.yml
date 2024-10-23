@@ -100,7 +100,7 @@ jobs:
                 body: body
               });
             } else {
-              console.log("else);
+              console.log("else");
               github.rest.issues.updateComment({
                 comment_id: filtered[0].id,
                 owner: context.repo.owner,
