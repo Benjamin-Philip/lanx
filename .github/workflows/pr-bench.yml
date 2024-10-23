@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [ "main" ]
 
-permissions: write-all
+# permissions: write-all
 
 env:
   otp: 26.2
