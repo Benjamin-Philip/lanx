@@ -84,7 +84,6 @@ jobs:
             });
 
             console.log(list);
-            console.log(list.data);
 
             let filtered = list.data;
             filtered.filter((issue) => issue.user.login == 'github-actions[bot]');
