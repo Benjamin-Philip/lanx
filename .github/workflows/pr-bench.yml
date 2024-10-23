@@ -92,7 +92,7 @@ jobs:
 
             console.log(filtered);
 
-            if (filtered == []) {
+            if (filtered.length == 0) {
               console.log("if");
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
