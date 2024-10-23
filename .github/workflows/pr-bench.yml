@@ -88,7 +88,7 @@ jobs:
             console.log(list);
 
             let filtered = list.data;
-            filtered.filter((issue) => issue.user.login == 'github-actions[bot]');
+            filtered.filter((issue) => issue.user.login == github.rest.users.getAuthenticated());
 
             console.log(filtered);
 
