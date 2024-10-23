@@ -3,9 +3,7 @@ on:
   pull_request:
     branches: [ "main" ]
 
-permissions:
-  contents: read
-  issues: write
+permissions: write-all
 
 env:
   otp: 26.2
