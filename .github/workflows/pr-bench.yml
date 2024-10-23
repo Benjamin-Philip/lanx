@@ -44,9 +44,7 @@ jobs:
         id: download
         uses: actions/download-artifact@v4
         with:
-          name: pr-${{ github.event.number }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: Benjamin-Philip/lanx
+          pattern: pr-${{ github.event.number }}-*
           path: 'benchmarks/profile/saves'
         continue-on-error: true
 
@@ -63,9 +61,8 @@ jobs:
       - name: Upload run
         uses: actions/upload-artifact@v4
         with:
-          name: pr-${{ github.event.number }}
+          name: pr-${{ github.event.number }}-${{ github.run-id }}
           path: 'benchmarks/profile/saves'
-          overwrite: true
 
       - name: Generate Report
         run: |
