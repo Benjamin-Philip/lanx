@@ -24,3 +24,6 @@ lanx-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Benchmarks
+/benchmarks/profile/saves/

@@ -1,0 +1,96 @@
+name: Benchmark PR
+on:
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  otp: 26.2
+  elixir: 1.16.2
+
+jobs:
+  benchmark:
+    name: Benchmark and Report
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50 # this is to make sure we obtain the target base commit
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.elixir }}
+          otp-version: ${{ env.otp }}
+
+      - name: Restore dependencies cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-elixir-${{ env.elixir }}-otp-${{ env.otp }}-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        run: mix do deps.get, deps.compile
+
+      - name: Build
+        run: MIX_ENV=bench mix compile
+
+      - name: Download previous run
+        id: download
+        uses: actions/cache@v4
+        with:
+          path: 'benchmarks/profile/saves'
+          key: pr-${{ github.event.number }}
+          save-always: true
+        continue-on-error: true
+
+      - name: Benchmark base
+        if: ${{ steps.download.outputs.cache-hit != 'true' }}
+        run: |
+          git checkout ${{ github.event.pull_request.base.sha }}
+          mix bench.profile.run --tag base
+          git checkout ${{ github.event.pull_request.head.sha }}
+
+      - name: Benchmark head
+        run: mix bench.profile.run --tag ${{ github.event.pull_request.head.sha }} --profile
+
+      - name: Generate Report
+        run: |
+          mix bench.profile.report
+
+      - name: Comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            let body = require('fs').readFileSync('./benchmarks/profile/saves/report.md').toString();
+
+            let list = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            let filtered = list.data;
+            filtered.filter((issue) => issue.user.login == 'github-actions[bot]');
+
+            if (filtered.length == 0) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            } else {
+              github.rest.issues.updateComment({
+                comment_id: filtered[0].id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+            }
