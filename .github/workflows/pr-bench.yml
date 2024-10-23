@@ -46,6 +46,7 @@ jobs:
         with:
           path: 'benchmarks/profile/saves'
           key: pr-${{ github.event.number }}
+          save-always: true
         continue-on-error: true
 
       - name: Benchmark base
