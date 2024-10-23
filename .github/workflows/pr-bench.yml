@@ -46,6 +46,7 @@ jobs:
         with:
           name: pr-${{ github.event.number }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: Benjamin-Philip/lanx
           path: 'benchmarks/profile/saves'
         continue-on-error: true
 
