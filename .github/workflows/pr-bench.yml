@@ -62,7 +62,7 @@ jobs:
       - name: Upload run
         uses: actions/upload-artifact@v4
         with:
-          name: pr-${{ github.event.number }}-${{ github.run-id }}
+          name: pr-${{ github.event.number }}-${{ github.run_id }}
           path: 'benchmarks/profile/saves'
 
       - name: Generate Report
