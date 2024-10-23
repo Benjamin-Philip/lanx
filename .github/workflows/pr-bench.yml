@@ -75,6 +75,7 @@ jobs:
       - name: Comment
         uses: actions/github-script@v7
         with:
+          permissions: write-all
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             let body = require('fs').readFileSync('./benchmarks/profile/saves/report.md').toString();
