@@ -42,11 +42,10 @@ jobs:
 
       - name: Download previous run
         id: download
-        uses: actions/download-artifact@v4
+        uses: actions/cache@v4
         with:
-          pattern: pr-${{ github.event.number }}-*
-          merge-multiple: true
           path: 'benchmarks/profile/saves'
+          key: pr-${{ github.event.number }}
         continue-on-error: true
 
       - name: Benchmark base
@@ -58,12 +57,6 @@ jobs:
 
       - name: Benchmark head
         run: mix bench.profile.run --tag ${{ github.event.pull_request.head.sha }} --profile
-
-      - name: Upload run
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-${{ github.event.number }}-${{ github.run_id }}
-          path: 'benchmarks/profile/saves'
 
       - name: Generate Report
         run: |
