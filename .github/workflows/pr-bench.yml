@@ -3,8 +3,6 @@ on:
   pull_request:
     branches: [ "main" ]
 
-# permissions: write-all
-
 env:
   otp: 26.2
   elixir: 1.16.2
@@ -16,8 +14,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        # with:
-        #   fetch-depth: 50 # this is to make sure we obtain the target base commit
+        with:
+          fetch-depth: 50 # this is to make sure we obtain the target base commit
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
