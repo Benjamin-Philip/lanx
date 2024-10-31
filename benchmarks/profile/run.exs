@@ -14,7 +14,7 @@
 
 defmodule RandEncode do
   def encode do
-    Base.encode64(:crypto.strong_rand_bytes(2 ** 27))
+    Base.encode64(:crypto.strong_rand_bytes(2 ** 5))
   end
 end
 
@@ -61,7 +61,7 @@ Benchee.run(
     else
       false
     end,
-  time: 60,
+  time: 10,
   save: save_opts,
   formatters: []
 )
