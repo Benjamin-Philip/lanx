@@ -27,9 +27,8 @@ defmodule Lanx.MixProject do
     [
       preferred_envs: [
         bench: :bench,
-        "bench.profile": :bench,
-        "bench.profile.run": :bench,
-        "bench.profile.report": :bench
+        "bench.run": :bench,
+        "bench.report": :bench
       ]
     ]
   end
@@ -59,14 +58,13 @@ defmodule Lanx.MixProject do
 
   defp aliases do
     [
-      bench: fn args -> Mix.Task.run("bench.profile", args) end,
-      "bench.profile": fn args ->
-        Mix.Task.run("bench.profile.run", args)
-        Mix.Task.run("bench.profile.report", args)
+      bench: fn args ->
+        Mix.Task.run("bench.run", args)
+        Mix.Task.run("bench.report", args)
       end,
-      "bench.profile.run": "run benchmarks/profile/run.exs",
-      "bench.profile.report": "run benchmarks/profile/report.exs",
-      "bench.profile.clean": "cmd rm -r benchmarks/profile/saves/"
+      "bench.run": "run bench/run.exs",
+      "bench.report": "run bench/report.exs",
+      "bench.clean": "cmd rm -r bench/saves/"
     ]
   end
 end

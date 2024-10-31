@@ -14,14 +14,15 @@
 
 defmodule RandEncode do
   def encode do
-    Base.encode64(:crypto.strong_rand_bytes(2 ** 27))
+    Base.encode64(:crypto.strong_rand_bytes(2 ** 5))
   end
 end
 
 Supervisor.start_link(
   [
     {NaiveJQ, [name: RandJQ, job: fn _ -> RandEncode.encode() end]},
-    {FLAME.Pool, name: FlameRunner, min: 1, max: 1, max_concurrency: 1},
+    {FLAME.Pool, name: FLAMECallRunner, min: 1, max: 1, max_concurrency: 1},
+    {FLAME.Pool, name: FLAMEJQRunner, min: 1, max: 1, max_concurrency: 1},
     {Lanx,
      [
        name: RandLanx,
@@ -33,6 +34,8 @@ Supervisor.start_link(
   ],
   strategy: :one_for_one
 )
+
+FLAME.place_child(FLAMEJQRunner, {NaiveJQ, [name: FLAMEJQ, job: fn _ -> RandEncode.encode() end]})
 
 opts =
   case OptionParser.parse(System.argv(), switches: [tag: :string, profile: :boolean]) do
@@ -52,7 +55,8 @@ Benchee.run(
   %{
     "encode" => &RandEncode.encode/0,
     "NaiveJQ" => fn -> NaiveJQ.run(RandJQ, System.system_time()) end,
-    "FLAME" => fn -> FLAME.call(FlameRunner, &RandEncode.encode/0) end,
+    "FLAMECall" => fn -> FLAME.call(FLAMECallRunner, &RandEncode.encode/0) end,
+    "FLAMEJQ" => fn -> NaiveJQ.run(FLAMEJQ, System.system_time()) end,
     "Lanx" => fn -> Lanx.run(RandLanx, fn pid -> NaiveJQ.run(pid, System.system_time()) end) end
   },
   profile_after:
@@ -61,7 +65,7 @@ Benchee.run(
     else
       false
     end,
-  time: 60,
+  time: 10,
   save: save_opts,
   formatters: []
 )
