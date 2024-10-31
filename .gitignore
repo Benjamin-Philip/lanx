@@ -26,4 +26,4 @@ lanx-*.tar
 /tmp/
 
 # Benchmarks
-/benchmarks/profile/saves/
+/bench/saves/
