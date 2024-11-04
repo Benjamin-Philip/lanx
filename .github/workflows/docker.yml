@@ -52,7 +52,7 @@ jobs:
       - name: Build and maybe push
         uses: docker/build-push-action@v4
         with:
-          push: github.event_name != 'pull_request'
+          push: ${{ github.event_name != 'pull_request' }}
           context: .
           file: ${{ matrix.file }}
           build-contexts: ${{ matrix.build_contexts }}
