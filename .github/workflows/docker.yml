@@ -19,13 +19,14 @@ jobs:
         include:
           - name: "torchserve"
             file: "load-tests/docker/torchserve.dockerfile"
-            build_contexts: []
+            build_contexts: ""
           - name: "nx_net"
             file: "load-tests/docker/nx_net/Dockerfile"
-            build_contexts: []
+            build_contexts: ""
           - name: "lanx_net"
             file: "load-tests/docker/lanx_net/Dockerfile"
-            build_contexts: ["lanx=./"]
+            build_contexts: |
+              lanx=./
 
     steps:
       - name: Setup QEMU
