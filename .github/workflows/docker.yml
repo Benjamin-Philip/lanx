@@ -50,7 +50,7 @@ jobs:
           images: ghcr.io/Benjamin-Philip/lanx/load-test-${{ matrix.name }}
 
       - name: Build and maybe push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           push: ${{ github.event_name != 'pull_request' }}
           context: .
