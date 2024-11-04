@@ -18,15 +18,18 @@ jobs:
       matrix:
         include:
           - name: "torchserve"
-            file: "./load-tests/docker/torchserve.dockerfile"
+            context: load-tests/docker/
+            file: torchserve.dockerfile
             build_contexts: ""
           - name: "nx_net"
-            file: "./load-tests/docker/nx_net/Dockerfile"
+            context: load-tests/docker/nx_net
+            file: Dockerfile
             build_contexts: ""
           - name: "lanx_net"
-            file: "./load-tests/docker/lanx_net/Dockerfile"
+            context: load-tests/docker/lanx_net
+            file: Dockerfile
             build_contexts: |
-              lanx=./
+              lanx=../../../
 
     steps:
       - name: Setup QEMU
@@ -53,8 +56,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: ${{ github.event_name != 'pull_request' }}
-          context: .
-          file: ${{ matrix.file }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }/${{ matrix.file }}
           build-contexts: ${{ matrix.build_contexts }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.output.tags }}
