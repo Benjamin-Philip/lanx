@@ -18,7 +18,7 @@ jobs:
       matrix:
         include:
           - name: "torchserve"
-            context: load-tests/docker/
+            context: load-tests/docker
             file: torchserve.dockerfile
             build_contexts: ""
           - name: "nx_net"
@@ -32,6 +32,8 @@ jobs:
               lanx=../../../
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
 
