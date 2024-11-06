@@ -1,7 +1,7 @@
 Benchee.report(
-  load: ["benchmarks/profile/saves/*.benchee"],
+  load: ["bench/saves/*.benchee"],
   formatters: [
     {Benchee.Formatters.Console, extended_statistics: true},
-    {Benchee.Formatters.Markdown, file: "benchmarks/profile/saves/report.md"}
+    {Benchee.Formatters.Markdown, file: "bench/saves/report.md"}
   ]
 )

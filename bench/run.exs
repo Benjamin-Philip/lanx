@@ -43,7 +43,7 @@ opts =
     _ -> []
   end
 
-path = "benchmarks/profile/saves/#{System.system_time()}.benchee"
+path = "bench/saves/#{System.system_time()}.benchee"
 
 save_opts =
   case opts[:tag] do
