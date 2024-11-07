@@ -64,6 +64,6 @@ jobs:
           file: ${{ matrix.context }}/${{ matrix.file }}
           build-contexts: ${{ matrix.build_contexts }}
           platforms: linux/amd64
-          tags: ${{ steps.meta.output.tags }}
+          tags: ${{ env.DOCKER_METADATA_OUTPUT_TAGS }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
