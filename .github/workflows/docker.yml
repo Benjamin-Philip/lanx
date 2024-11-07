@@ -53,8 +53,6 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/Benjamin-Philip/lanx/load-test-${{ matrix.name }}
-          tags: |
-            type=sha
 
       - name: Build and maybe push
         uses: docker/build-push-action@v6
