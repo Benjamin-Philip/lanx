@@ -52,7 +52,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/Benjamin-Philip/lanx/load-test-${{ matrix.name }}
+          images: ghcr.io/Benjamin-Philip/${{ matrix.name }}
 
       - name: Build and maybe push
         uses: docker/build-push-action@v6
